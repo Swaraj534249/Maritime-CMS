@@ -1,1 +1,1 @@
-# Maritime-CMS
+# MERN-CMS
