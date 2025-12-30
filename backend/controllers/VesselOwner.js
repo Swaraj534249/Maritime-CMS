@@ -1,6 +1,9 @@
 const { Schema, default: mongoose } = require("mongoose")
 const VesselOwner = require("../models/VesselOwner")
+const Vessel = require("../models/Vessel")
 const { deleteFile } = require("../middleware/upload")
+const { buildListQuery } = require("../utils/ListQueryBuilder")
+const { buildListResponse } = require("../utils/ListResponseBuilder")
 
 // Helper function to process uploaded files with main/old logic
 const processUploadedFiles = (files, existingData = null) => {
@@ -33,7 +36,7 @@ const processUploadedFiles = (files, existingData = null) => {
     
     result.contract = {
       main: newFile,
-      old: existingData?.contract?.main || null  // Current main becomes old
+      old: existingData?.contract?.main || null
     }
   }
   
@@ -51,7 +54,7 @@ const processUploadedFiles = (files, existingData = null) => {
     
     result.license = {
       main: newFile,
-      old: existingData?.license?.main || null  // Current main becomes old
+      old: existingData?.license?.main || null
     }
   }
   
@@ -62,7 +65,6 @@ exports.create = async (req, res) => {
   try {
     const data = { ...req.body }
     
-    // Add uploaded files to data
     if (req.files) {
       const uploadedFiles = processUploadedFiles(req.files)
       Object.assign(data, uploadedFiles)
@@ -73,7 +75,6 @@ exports.create = async (req, res) => {
     res.status(201).json(created)
   } catch (error) {
     console.log(error)
-    // Clean up uploaded files if save fails
     if (req.files) {
       if (req.files.company_logo) {
         req.files.company_logo.forEach(file => deleteFile(file.path))
@@ -89,63 +90,79 @@ exports.create = async (req, res) => {
   }
 }
 
+exports.getAllLimit = async (req, res) => {
+  const page = Number(req.query.page || 1)
+  const pageSize = Number(req.query.limit || 10)
+
+  const { queryFilter, skip, limit, sort } = buildListQuery({
+    Model: VesselOwner,
+    searchValue: req.query.searchValue,
+    searchFields: [
+      'company_name',
+      'company_shortname',
+      'contactperson',
+      'email',
+      'phoneno',
+      'address',
+      'crewing_department1',
+      'crewing_department11'
+    ],
+    page,
+    pageSize,
+    sortField: req.query.sortField,
+    sortOrder: req.query.sortOrder
+  })
+
+  const [data, totalRecords] = await Promise.all([
+    VesselOwner.find(queryFilter).skip(skip).limit(limit).sort(sort).lean(),
+    VesselOwner.countDocuments(queryFilter),
+  ])
+
+   const ownerIds = data.map(o => o._id)
+
+    const vesselCounts = await Vessel.aggregate([
+    { $match: { vesselOwner: { $in: ownerIds } } },
+    { $group: { _id: '$vesselOwner', count: { $sum: 1 } } }
+  ])
+
+const vesselCountByOwner = {}
+  vesselCounts.forEach(v => {
+    if (v._id) {
+      vesselCountByOwner[v._id.toString()] = v.count
+    }
+  })
+
+  res.json(
+    buildListResponse({
+      data,
+      page,
+      pageSize,
+      totalRecords,
+      searchValue: req.query.searchValue,
+      sortField: req.query.sortField,
+      sortOrder: req.query.sortOrder,
+      aggregates: {
+        vesselCountByOwner
+      }
+    })
+  )
+}
+
+// Get all Vessel Owners without pagination (unchanged)
 exports.getAll = async (req, res) => {
   try {
     const filter = {}
-    let skip = 0
-    let limit = 0
 
-    const page = req.query.page ? parseInt(req.query.page, 10) : null
-    const pageSize = req.query.limit ? parseInt(req.query.limit, 10) : null
-
-    if (page && pageSize) {
-      limit = pageSize
-      skip = pageSize * (page - 1)
-    }
-
-    // server-side search q
-    const searchValue = req.query.searchValue ? String(req.query.searchValue).trim() : null
-    if (searchValue) {
-      const re = new RegExp(searchValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-      filter.$or = [
-        { company_name: re },
-        { company_shortname: re },
-        { contactperson: re },
-        { phoneno: re },
-        { email: re },
-        { address: re },
-        { crewing_department1: re },
-        { crewing_department11: re }
-      ]
-    }
-
-    // other possible filters
     if (req.query.user) {
       filter['isDeleted'] = false
     }
 
-    const sortField = req.query.sortField
-    const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1
-    const sortObj = {}
-    if (sortField) {
-      sortObj[sortField] = sortOrder
-    }
-
-    const totalDocs = await VesselOwner.countDocuments(filter).exec()
-
-    let query = VesselOwner.find(filter)
-    if (Object.keys(sortObj).length) query = query.sort(sortObj)
-    if (skip) query = query.skip(skip)
-    if (limit) query = query.limit(limit)
-
-    const results = await query.exec()
-
-    res.set("X-Total-Count", totalDocs)
+    const results = await VesselOwner.find(filter).exec()
     res.status(200).json(results)
 
   } catch (error) {
     console.log(error)
-    res.status(500).json({ message: 'Error fetching Vessel Owner, please try again later' })
+    res.status(500).json({ message: 'Error fetching Vessel Owners, please try again later' })
   }
 }
 
@@ -153,6 +170,11 @@ exports.getById = async (req, res) => {
   try {
     const { id } = req.params
     const result = await VesselOwner.findById(id)
+    
+    if (!result) {
+      return res.status(404).json({ message: 'Vessel Owner not found' })
+    }
+    
     res.status(200).json(result)
   } catch (error) {
     console.log(error)
@@ -164,21 +186,15 @@ exports.updateById = async (req, res) => {
   try {
     const { id } = req.params
     const data = { ...req.body }
-
-    console.log("data; ",data);
     
-    
-    // Get existing record
     const existing = await VesselOwner.findById(id)
     if (!existing) {
       return res.status(404).json({ message: 'Vessel Owner not found' })
     }
     
-    // Add uploaded files to update data with main/old logic
     if (req.files) {
       const uploadedFiles = processUploadedFiles(req.files, existing)
       
-      // If updating company logo, delete old file
       if (uploadedFiles.company_logo) {
         if (existing.company_logo?.path) {
           deleteFile(existing.company_logo.path)
@@ -186,7 +202,6 @@ exports.updateById = async (req, res) => {
         data.company_logo = uploadedFiles.company_logo
       }
       
-      // If updating contract, delete the old file (not the current main)
       if (uploadedFiles.contract) {
         if (existing.contract?.old?.path) {
           deleteFile(existing.contract.old.path)
@@ -194,7 +209,6 @@ exports.updateById = async (req, res) => {
         data.contract = uploadedFiles.contract
       }
       
-      // If updating license, delete the old file (not the current main)
       if (uploadedFiles.license) {
         if (existing.license?.old?.path) {
           deleteFile(existing.license.old.path)
@@ -207,7 +221,6 @@ exports.updateById = async (req, res) => {
     res.status(200).json(updated)
   } catch (error) {
     console.log(error)
-    // Clean up uploaded files if update fails
     if (req.files) {
       if (req.files.company_logo) {
         req.files.company_logo.forEach(file => deleteFile(file.path))
@@ -227,6 +240,11 @@ exports.undeleteById = async (req, res) => {
   try {
     const { id } = req.params
     const unDeleted = await VesselOwner.findByIdAndUpdate(id, { isDeleted: false }, { new: true })
+    
+    if (!unDeleted) {
+      return res.status(404).json({ message: 'Vessel Owner not found' })
+    }
+    
     res.status(200).json(unDeleted)
   } catch (error) {
     console.log(error)
@@ -238,6 +256,11 @@ exports.deleteById = async (req, res) => {
   try {
     const { id } = req.params
     const deleted = await VesselOwner.findByIdAndUpdate(id, { isDeleted: true }, { new: true })
+    
+    if (!deleted) {
+      return res.status(404).json({ message: 'Vessel Owner not found' })
+    }
+    
     res.status(200).json(deleted)
   } catch (error) {
     console.log(error)

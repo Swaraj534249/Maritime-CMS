@@ -15,11 +15,11 @@ const contracts = [
 ];
 
 const manager_pages = [
-  { name: 'Vessel Managers', to: '/vessel-managers', icon: <BusinessIcon /> },
-  { name: 'Vessel Owners', to: '/vessel-owners', icon: <BusinessIcon /> },
-  { name: 'Crew', to: '/crews', icon: <GroupsIcon /> },
-  { name: 'Crew Agents', to: '/crewingAgents', icon: <PeopleIcon /> },
-  { name: 'Ranks', to: '/rank', icon: <WorkIcon /> },
+  { name: 'Vessel Managers', to: '/vessel-managers', icon: <BusinessIcon />, title: 'Vessel Managers' },
+  { name: 'Vessel Owners', to: '/vessel-owners', icon: <BusinessIcon />, title: 'Vessel Owners' },
+  { name: 'Crew', to: '/crews', icon: <GroupsIcon />, title: 'Crew' },
+  { name: 'Crew Agents', to: '/crewingAgents', icon: <PeopleIcon />, title: 'Crew Agents' },
+  { name: 'Ranks', to: '/rank', icon: <WorkIcon />, title: 'Ranks' },
 ];
 
 export const SidebarStatic = () => {
@@ -55,6 +55,7 @@ export const SidebarStatic = () => {
               component={Link}
               to={p.to}
               sx={{ justifyContent: 'center', py: 2, width: '100%' }}
+              title={p.title}
             >
               <ListItemIcon sx={{ minWidth: 0, justifyContent: 'center' }}>{p.icon}</ListItemIcon>
             </ListItemButton>

@@ -8,6 +8,7 @@ const authRoutes = require("./routes/Auth")
 const userRoutes = require("./routes/User")
 
 const vesselOwnerRoutes = require("./routes/VesselOwner")
+const vesselRoutes = require("./routes/Vessel")
 const crewingAgentRoutes = require("./routes/CrewingAgent")
 
 const { connectToDB } = require("./database/db")
@@ -33,6 +34,7 @@ server.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 server.use("/auth", authRoutes)
 server.use("/users", userRoutes)
 server.use("/vesselOwners", vesselOwnerRoutes)
+server.use("/vessels",vesselRoutes)
 server.use("/crewingAgents", crewingAgentRoutes)
 
 

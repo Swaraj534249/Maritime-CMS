@@ -1,22 +1,28 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { TextField, InputAdornment, IconButton } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import ClearIcon from '@mui/icons-material/Clear'
 
 const Search = ({ value = '', onDebouncedChange = () => {}, placeholder = 'Search...',delay = 500, sx = {} }) => {
   const [searchText, setSearchText] = useState(value)
+  const isFirstRun = useRef(true)
 
   useEffect(() => {
     setSearchText(value)
   }, [value])
 
-useEffect(() => {
+    useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false
+      return
+    }
+
     const handler = setTimeout(() => {
       onDebouncedChange(searchText.trim())
     }, delay)
 
     return () => clearTimeout(handler)
-  }, [searchText, delay])
+  }, [searchText, delay, onDebouncedChange])
 
   return (
     <TextField

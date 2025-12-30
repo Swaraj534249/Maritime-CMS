@@ -1,8 +1,8 @@
 import { axiosi } from '../../config/axios'
+import { normalizeListResponse } from '../../config/normalizeListResponse'
 
 export const createVesselOwner = async (data) => {
   try {
-    // Check if data is FormData (has files) or regular object
     const isFormData = data instanceof FormData
     
     const res = await axiosi.post("/vesselOwners", data, {
@@ -28,16 +28,17 @@ export const getVesselOwnerByUserId = async (id) => {
 export const getAllVesselOwners = async (params = {}, signal) => {
   try {
     const res = await axiosi.get('/vesselOwners', { params, signal })
-    const total = Number(res.headers['x-total-count'] ?? res.data.length)
-    return { data: res.data, total }
+    return normalizeListResponse(res)
   } catch (error) {
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      throw error
+    }
     throw error.response?.data ?? error
   }
 }
 
 export const updateVesselOwnerById = async (data) => {
   try {
-    
     const isFormData = data instanceof FormData
     const id = isFormData ? data.get('_id') : data._id
     
@@ -52,7 +53,6 @@ export const updateVesselOwnerById = async (data) => {
   }
 }
 
-// NEW: Delete a specific document
 export const deleteVesselOwnerDocument = async (vesselOwnerId, documentId) => {
   try {
     const res = await axiosi.delete(`/vesselOwners/${vesselOwnerId}/documents/${documentId}`)

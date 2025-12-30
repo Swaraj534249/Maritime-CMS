@@ -26,6 +26,7 @@ import { Box } from 'react-router-dom'
 import { RootLayout } from './layout/RootLayout'
 import { VesselOwnerPage } from './pages/VesselOwnerPage';
 import { CrewingAgentPage } from './pages/CrewingAgentPage';
+import { VesselPage } from './pages/VesselPage';
 
 function App() {
   const isAuthChecked = useSelector(selectIsAuthChecked)
@@ -37,7 +38,6 @@ function App() {
   const routes = createBrowserRouter(
     createRoutesFromElements(
       <>
-        {/* Public routes */}
         <Route path='/signup' element={<SignupPage />} />
         <Route path='/child' element={<Child />} />
         <Route path='/login' element={<LoginPage />} />
@@ -60,13 +60,15 @@ function App() {
               <Route path='/' element={<HomePage />} />
               <Route path='/profile' element={<UserProfilePage />} />
 +             <Route path='/vessel-owners' element={<VesselOwnerPage/>}/>
+        <Route exact path='/vessels/:id' element={<Protected><VesselPage/></Protected>}/>
 +             <Route path='/crewingAgents' element={<CrewingAgentPage/>}/>
+
+        <Route path='*' element={<NotFoundPage />} />
             </>
           )}
         </Route>
 
         {/* fallback */}
-        <Route path='*' element={<NotFoundPage />} />
       </>
     )
   )

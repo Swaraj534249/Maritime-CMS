@@ -3,10 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   getAllVesselOwnersAsync,
-  resetVesselOwnerUpdateStatus,
-  selectVesselOwnerUpdateStatus,
+  resetStatuses,
+  selectTotalCount,
+  selectUpdateStatus,
   selectVesselOwners,
-  selectVesselOwnersTotalCount,
+  selectVesselOwnersAggregates,
+    selectPaginationModel,
+  selectSortModel,
+  selectSearchValue,
+  setPaginationModel,
+  setSortModel,
+  setSearchValue,
 } from '../../vesselOwner/VesselOwnerSlice'
 import { 
   Button, 
@@ -47,24 +54,39 @@ import { toast } from 'react-toastify'
 import DataTable from '../../../components/DataTable/DataTable'
 import Search from '../../../components/Search/Search'
 import VesselOwnerForm from './VesselOwnerForm'
+import { useRowActions } from '../../../hooks/useRowActions'
+import { getFileURL } from '../../../utils/fileUtils'
+import { getFileIcon } from '../../../utils/fileIconUtils'
+import { useDocumentActions } from '../../../hooks/useDocumentActions'
 
 export const VesselOwners = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const vesselOwners = useSelector(selectVesselOwners)
-  const totalCount = useSelector(selectVesselOwnersTotalCount)
-  const [anchorEl, setAnchorEl] = useState(null)
-  const [selectedRowId, setSelectedRowId] = useState(null)
+  
+const vesselOwners = useSelector(selectVesselOwners)
+const totalCount = useSelector(selectTotalCount)
+const updateStatus = useSelector(selectUpdateStatus)
+const aggregates = useSelector(selectVesselOwnersAggregates)
+const vesselCountByOwner = aggregates?.vesselCountByOwner || {}
+const paginationModel = useSelector(selectPaginationModel)
+const sortModel = useSelector(selectSortModel)
+const searchValue = useSelector(selectSearchValue)
+
   const [openModal, setOpenModal] = useState(false)
   const [editData, setEditData] = useState(null)
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false)
   const [selectedDocuments, setSelectedDocuments] = useState({ contract: null, license: null })
-  const vesselOwnerUpdateStatus = useSelector(selectVesselOwnerUpdateStatus)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  // server-side pagination/sorting state
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
-  const [sortModel, setSortModel] = useState([])
-  const [searchValue, setSearchValue] = useState('')
+  const {
+  anchorEl,
+  open,
+  selectedRowId,
+  handleMenuOpen,
+  handleMenuClose
+} = useRowActions()
+
+const { openDocument } = useDocumentActions()
 
   const sortFieldMap = useMemo(() => ({
     company: 'company_name',
@@ -92,51 +114,23 @@ export const VesselOwners = () => {
     fetchPage(page1, limit, sortField, sortOrder, searchValue, controller.signal)
 
     return () => { controller.abort() }
-  }, [dispatch, paginationModel, sortModel, sortFieldMap, searchValue])
+  }, [paginationModel, sortModel, searchValue, refreshKey])
 
   useEffect(() => {
-    if (vesselOwnerUpdateStatus === 'fulfilled') {
+    if (updateStatus === 'fulfilled') {
       toast.success('Status updated')
       setOpenModal(false)
       setEditData(null)
-      // Refresh data
-      const page1 = paginationModel.page + 1
-      const limit = paginationModel.pageSize
-      fetchPage(page1, limit, undefined, undefined, searchValue, new AbortController().signal)
-    } else if (vesselOwnerUpdateStatus === 'rejected') {
+      setRefreshKey(prev => prev + 1)
+    } else if (updateStatus === 'rejected') {
       toast.error('Error updating vessel owner status')
     }
-  }, [vesselOwnerUpdateStatus])
+  }, [updateStatus])
 
-  useEffect(() => {
-    return () => {
-      dispatch(resetVesselOwnerUpdateStatus())
-    }
-  }, [dispatch])
-
-  // Helper function to get file URL
-  const getFileURL = (filePath) => {
-    if (!filePath) return null
-    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000'
-    return `${baseURL}/${filePath.replace(/\\/g, '/')}`
-  }
-
-  // Helper function to determine if file is PDF
   const isPDF = (file) => {
     return file?.mimetype === 'application/pdf' || 
            file?.filename?.toLowerCase().endsWith('.pdf') ||
            file?.originalName?.toLowerCase().endsWith('.pdf')
-  }
-
-  // handlers
-  const handleMenuOpen = (event, rowId) => {
-    setAnchorEl(event.currentTarget)
-    setSelectedRowId(rowId)
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null)
-    setSelectedRowId(null)
   }
 
   const handleAddNew = () => {
@@ -151,11 +145,6 @@ export const VesselOwners = () => {
     handleMenuClose()
   }
 
-  const handleViewVessels = () => {
-    navigate(`/vessels/${selectedRowId}`)
-    handleMenuClose()
-  }
-
   const handleDelete = () => {
     toast.info('Delete functionality not yet implemented')
     handleMenuClose()
@@ -167,21 +156,22 @@ export const VesselOwners = () => {
   }
 
   const handlePaginationModelChange = (model) => {
-    if (model.pageSize !== paginationModel.pageSize) {
-      setPaginationModel({ page: 0, pageSize: model.pageSize })
-    } else {
-      setPaginationModel(model)
-    }
+   if (model.pageSize !== paginationModel.pageSize) {
+    dispatch(setPaginationModel({ page: 0, pageSize: model.pageSize }))
+  } else {
+    dispatch(setPaginationModel(model))
+  }
   }
 
   const handleSortModelChange = (newModel) => {
-    setSortModel(newModel)
-    setPaginationModel((prev) => ({ ...prev, page: 0 }))
+    dispatch(setSortModel(newModel))
+  dispatch(setPaginationModel({ ...paginationModel, page: 0 }))
   }
 
   const handleSearch = (text) => {
-    setSearchValue(text)
-    setPaginationModel((prev) => ({ ...prev, page: 0 }))
+  if (text === searchValue) return
+  dispatch(setSearchValue(text))
+  dispatch(setPaginationModel({ ...paginationModel, page: 0 }))
   }
 
   const handleOpenDocuments = (vesselOwner) => {
@@ -190,38 +180,6 @@ export const VesselOwners = () => {
       license: vesselOwner.license || null,
     })
     setOpenDocumentsDialog(true)
-  }
-
-  const handleDocumentClick = (document) => {
-    const fileURL = getFileURL(document.path)
-    
-    if (isPDF(document)) {
-      // Open PDF in new tab
-      window.open(fileURL, '_blank')
-    } else {
-      // Download other file types
-      const link = window.document.createElement('a')
-      link.href = fileURL
-      link.download = document.originalName || document.filename
-      window.document.body.appendChild(link)
-      link.click()
-      window.document.body.removeChild(link)
-    }
-  }
-
-  // Get file icon based on type
-  const getFileIcon = (document) => {
-    if (isPDF(document)) {
-      return <PictureAsPdfIcon color="error" />
-    }
-    const ext = document.filename?.split('.').pop()?.toLowerCase()
-    if (['doc', 'docx'].includes(ext)) {
-      return <DescriptionIcon color="primary" />
-    }
-    if (['xls', 'xlsx'].includes(ext)) {
-      return <DescriptionIcon color="success" />
-    }
-    return <InsertDriveFileIcon />
   }
 
   // render cell functions
@@ -311,16 +269,29 @@ export const VesselOwners = () => {
     )
   }
 
-  const renderActionsCell = (params) => {
-    const id = params.row.id
-    return (
+ const renderActionsCell = (params) => {
+  const id = params.row.id
+  const count = vesselCountByOwner[id] ?? 0
+
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.5}>
+      <Chip
+        label={count}
+        size="small"
+        icon={<DirectionsBoatFilledOutlinedIcon />}
+        onClick={() => navigate(`/vessels/${id}`)}
+        sx={{ cursor: 'pointer' }}
+        color={count > 0 ? 'primary' : 'default'}
+        variant={count > 0 ? 'filled' : 'outlined'}
+      />
       <Tooltip title="More actions" arrow>
         <IconButton size="small" onClick={(event) => handleMenuOpen(event, id)}>
           <MoreVertIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-    )
-  }
+    </Stack>
+  )
+}
 
   // Render document section in dialog
   const renderDocumentSection = (title, docData, icon) => {
@@ -340,7 +311,7 @@ export const VesselOwners = () => {
         {/* Main File */}
         {docData.main?.filename && (
           <ListItemButton 
-            onClick={() => handleDocumentClick(docData.main)}
+            onClick={() => openDocument(docData.main)}
             sx={{ 
               border: '1px solid #4caf50', 
               borderRadius: 1, 
@@ -384,7 +355,7 @@ export const VesselOwners = () => {
         {/* Old File */}
         {docData.old?.filename && (
           <ListItemButton 
-            onClick={() => handleDocumentClick(docData.old)}
+            onClick={() => openDocument(docData.old)}
             sx={{ 
               border: '1px solid #e0e0e0', 
               borderRadius: 1,
@@ -426,7 +397,7 @@ export const VesselOwners = () => {
     )
   }
 
-  // rows & columns
+  // console.log("vesselOwners: ",vesselOwners);
   const rows = vesselOwners.map((v) => ({
     id: v._id,
     company_shortname: v.company_shortname,
@@ -440,7 +411,6 @@ export const VesselOwners = () => {
   }))
 
   const columns = [
-    { field: 'id', headerName: 'Id', flex: 0.4, minWidth: 90, sortable: true },
     {
       field: 'company',
       headerName: 'Owner Name',
@@ -493,13 +463,17 @@ export const VesselOwners = () => {
   return (
     <Stack justifyContent={'center'} alignItems={'center'}>
       <Stack mt={0} mb={0} sx={{ width: '100%' }}>
-        <Stack 
-          direction="row" 
-          justifyContent="space-between" 
-          alignItems="center"
-          sx={{ px: 1, mb: 1 }}
-        >
-          <Button
+        <Stack mb={1} direction="row" width="100%" justifyContent="space-between" alignItems="center" sx={{ px: 1 }}>
+                <Typography variant="h6">Vessel Owners</Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Search
+            value={searchValue}
+            onDebouncedChange={(val) => handleSearch(val)}
+            delay={800}
+            placeholder="Search vessel owners..."
+            sx={{ width: { xs: '140px', sm: '220px', md: '320px' } }}
+          />
+                   <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleAddNew}
@@ -507,15 +481,8 @@ export const VesselOwners = () => {
           >
             Add Vessel Owner
           </Button>
-
-          <Search
-            value={searchValue}
-            onDebouncedChange={(val) => handleSearch(val)}
-            delay={800}
-            placeholder="Search vessel owners..."
-            sx={{ width: { xs: '140px', sm: '220px', md: '320px' } }}
-          />
-        </Stack>
+                </Stack>
+              </Stack>
 
         <DataTable
           rows={rows}
@@ -531,7 +498,6 @@ export const VesselOwners = () => {
           onSortModelChange={handleSortModelChange}
         />
 
-        {/* Action Menu */}
         <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
@@ -541,16 +507,11 @@ export const VesselOwners = () => {
             <EditOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
             Edit
           </MenuItem>
-          <MenuItem onClick={handleViewVessels}>
-            <DirectionsBoatFilledOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
-            View Vessels
-          </MenuItem>
           <MenuItem onClick={handleDelete}>
             Delete
           </MenuItem>
         </Menu>
 
-        {/* Documents Dialog */}
         <Dialog
           open={openDocumentsDialog}
           onClose={() => setOpenDocumentsDialog(false)}
@@ -567,13 +528,11 @@ export const VesselOwners = () => {
             </MuiIconButton>
           </DialogTitle>
           <DialogContent>
-            {/* Contract Section */}
             {renderDocumentSection('Contract', selectedDocuments.contract, <ArticleIcon color="primary" />)}
             
             {/* License Section */}
             {renderDocumentSection('License', selectedDocuments.license, <BadgeIcon color="secondary" />)}
             
-            {/* No documents message */}
             {!selectedDocuments.contract?.main?.filename && 
              !selectedDocuments.contract?.old?.filename &&
              !selectedDocuments.license?.main?.filename &&
@@ -585,7 +544,6 @@ export const VesselOwners = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Add/Edit Modal */}
         <Dialog
           open={openModal}
           onClose={handleCloseModal}

@@ -147,19 +147,13 @@ const VesselOwnerForm = ({ initialData = null, onClose }) => {
 
   const handleFormSubmit = async (formData, uploadedFiles) => {
     try {
-      // Create FormData for file upload
       const data = new FormData()
-      
-      // Add uploadFolder to specify where files should be saved
       data.append('uploadFolder', 'vesselOwners')
-      
       // Coerce company_shortname/company_name to single string (use first value if array)
       const companyShort = Array.isArray(formData.company_shortname) ? formData.company_shortname[0] : formData.company_shortname
       const companyName = Array.isArray(formData.company_name) ? formData.company_name[0] : formData.company_name
       if (companyShort) data.append('company_shortname', companyShort)
       if (companyName) data.append('company_name', companyName)
-      
-      // Append other text fields (ensure single values)
       Object.keys(formData).forEach(key => {
         if (key === 'company_shortname' || key === 'company_name') return
         const val = formData[key]
@@ -167,22 +161,16 @@ const VesselOwnerForm = ({ initialData = null, onClose }) => {
         const singleVal = Array.isArray(val) ? val[0] : val
         data.append(key, singleVal)
       })
-      
-      // Append company logo if uploaded
       if (uploadedFiles.company_logo) {
         data.append('company_logo', uploadedFiles.company_logo)
       }
-      
-      // Append contract if uploaded
       if (uploadedFiles.contract) {
         data.append('contract', uploadedFiles.contract)
       }
-      
-      // Append license if uploaded
       if (uploadedFiles.license) {
         data.append('license', uploadedFiles.license)
       }
-      console.log("formData", formData, data);
+      // console.log("formData", formData, uploadedFiles);
 
       if (isEditMode) {
         data.append('_id', initialData._id)
@@ -192,7 +180,6 @@ const VesselOwnerForm = ({ initialData = null, onClose }) => {
         await dispatch(createVesselOwnerAsync(data)).unwrap()
         toast.success('Vessel owner created successfully')
       }
-      
       onClose()
     } catch (error) {
       console.error('Form submission error:', error)

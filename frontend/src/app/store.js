@@ -3,7 +3,7 @@ import AuthSlice from '../features/auth/AuthSlice'
 import UserSlice from '../features/user/UserSlice'
 import VesselOwnerSlice from '../features/vesselOwner/VesselOwnerSlice'
 // import VesselManagerSlice from '../features/vesselManager/VesselManagerSlice'
-// import VesselSlice from '../features/vessel/VesselSlice'
+import VesselSlice from '../features/vessel/VesselSlice'
 // import RankSlice from '../features/rank/RankSlice'
 // import CrewSlice from '../features/crew/CrewSlice'
 import CrewingAgentSlice from '../features/crewingAgent/CrewingAgentSlice'
@@ -15,7 +15,7 @@ export const store=configureStore({
         UserSlice,
         VesselOwnerSlice,
         // VesselManagerSlice,
-        // VesselSlice,
+        VesselSlice,
         // RankSlice,
         // CrewSlice,
         CrewingAgentSlice,

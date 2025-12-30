@@ -1,125 +1,214 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { createVesselOwner, getAllVesselOwners, getVesselOwnerByUserId, updateVesselOwnerById } from './VesselOwnerApi'
+import {
+  createVesselOwner,
+  getAllVesselOwners,
+  getVesselOwnerByUserId,
+  updateVesselOwnerById
+} from './VesselOwnerApi'
 
 const initialState = {
-  status: "idle",
-  vesselOwnerUpdateStatus: "idle",
-  vesselOwnerFetchStatus: "idle",
-  vesselOwners: [],
-  totalCount: 0,
-  currentVesselOwner: null,
-  errors: null,
-  successMessage: null
+  list: {
+    data: [],
+    meta: {
+      pagination: {
+        page: 1,
+        pageSize: 10,
+        totalRecords: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false,
+      },
+      searchValue: null,
+      sortField: '_id',
+      sortOrder: 'asc',
+    },
+    aggregates: {
+      vesselCountByOwner: {},
+      counts: {
+        total: 0,
+        active: 0,
+        deleted: 0,
+      },
+    },
+    context: {},
+  },
+
+  current: null,
+  selectedByUser: null,
+
+  status: {
+    fetch: 'idle',
+    create: 'idle',
+    update: 'idle',
+  },
+
+  ui: {
+    paginationModel: { page: 0, pageSize: 10 },
+    sortModel: [],
+    searchValue: '',
+  },
+
+  error: null,
 }
 
-// Accept an object { params, signal } so component can pass AbortController.signal
 export const getAllVesselOwnersAsync = createAsyncThunk(
-  "vesselOwners/getAllVesselOwnersAsync",
-  async ({ params = {}, signal } = {}) => {
-    const res = await getAllVesselOwners(params, signal)
-    return res
+  'vesselOwners/fetchAll',
+  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
+    try {
+      return await getAllVesselOwners(params, signal)
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message)
+    }
   }
 )
 
-export const createVesselOwnerAsync = createAsyncThunk("vesselOwners/createVesselOwnerAsync", async (vesselOwner) => {
-  const createdVesselOwner = await createVesselOwner(vesselOwner)
-  return createdVesselOwner
-})
+export const createVesselOwnerAsync = createAsyncThunk(
+  'vesselOwners/create',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await createVesselOwner(payload)
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message)
+    }
+  }
+)
 
-export const getVesselOwnerByUserIdAsync = createAsyncThunk("vesselOwners/getVesselOwnerByUserIdAsync", async (id) => {
-  const selectedVesselOwners = await getVesselOwnerByUserId(id)
-  return selectedVesselOwners
-})
+export const updateVesselOwnerByIdAsync = createAsyncThunk(
+  'vesselOwners/update',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await updateVesselOwnerById(payload)
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message)
+    }
+  }
+)
 
-export const updateVesselOwnerByIdAsync = createAsyncThunk("vesselOwners/updateVesselOwnerByIdAsync", async (update) => {
-  const updatedVesselOwner = await updateVesselOwnerById(update)
-  return updatedVesselOwner
-})
+export const getVesselOwnerByUserIdAsync = createAsyncThunk(
+  'vesselOwners/getByUser',
+  async (id, { rejectWithValue }) => {
+    try {
+      return await getVesselOwnerByUserId(id)
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message)
+    }
+  }
+)
 
 const vesselOwnerSlice = createSlice({
-  name: 'vesselOwnerSlice',
+  name: 'vesselOwners',
   initialState,
   reducers: {
-    resetCurrentVesselOwner: (state) => {
-      state.currentVesselOwner = null
+    resetStatuses(state) {
+      state.status.fetch = 'idle'
+      state.status.create = 'idle'
+      state.status.update = 'idle'
+      state.error = null
     },
-    resetVesselOwnerUpdateStatus: (state) => {
-      state.vesselOwnerUpdateStatus = 'idle'
+    resetCurrentVesselOwner(state) {
+      state.current = null
     },
-    resetVesselOwnerFetchStatus: (state) => {
-      state.vesselOwnerFetchStatus = 'idle'
-    }
+    setPaginationModel(state, action) {
+    state.ui.paginationModel = action.payload
+  },
+
+  setSortModel(state, action) {
+    state.ui.sortModel = action.payload
+  },
+
+  setSearchValue(state, action) {
+    state.ui.searchValue = action.payload
+  },
   },
   extraReducers: (builder) => {
     builder
-      // create...
-      .addCase(createVesselOwnerAsync.pending, (state) => {
-        state.status = 'pending'
-      })
-      .addCase(createVesselOwnerAsync.fulfilled, (state, action) => {
-        state.status = 'fulfilled'
-        state.vesselOwners.push(action.payload)
-        state.currentVesselOwner = action.payload
-      })
-      .addCase(createVesselOwnerAsync.rejected, (state, action) => {
-        state.status = 'rejected'
-        state.errors = action.error
-      })
-
-      // getAll now uses server-side payload { data, total }
       .addCase(getAllVesselOwnersAsync.pending, (state) => {
-        state.vesselOwnerFetchStatus = 'pending'
+        state.status.fetch = 'pending'
       })
       .addCase(getAllVesselOwnersAsync.fulfilled, (state, action) => {
-        state.vesselOwnerFetchStatus = 'fulfilled'
-        state.vesselOwners = action.payload.data
-        state.totalCount = action.payload.total ?? action.payload.data.length
+        state.status.fetch = 'fulfilled'
+
+        const { data, meta, aggregates, context } = action.payload || {}
+
+        state.list.data = data || []
+        state.list.meta = meta || initialState.list.meta
+        state.list.aggregates = aggregates || initialState.list.aggregates
+        state.list.context = context || {}
+
+        state.totalCount = meta?.pagination?.totalRecords || 0
       })
       .addCase(getAllVesselOwnersAsync.rejected, (state, action) => {
-        state.vesselOwnerFetchStatus = 'rejected'
-        state.errors = action.error
+        state.status.fetch = 'rejected'
+        state.error = action.payload
       })
 
-      // getByUser...
-      .addCase(getVesselOwnerByUserIdAsync.pending, (state) => {
-        state.vesselOwnerFetchStatus = 'pending'
+      .addCase(createVesselOwnerAsync.pending, (state) => {
+        state.status.create = 'pending'
       })
-      .addCase(getVesselOwnerByUserIdAsync.fulfilled, (state, action) => {
-        state.vesselOwnerFetchStatus = 'fulfilled'
-        state.selectedVesselOwners = action.payload
+      .addCase(createVesselOwnerAsync.fulfilled, (state, action) => {
+        state.status.create = 'fulfilled'
+        state.list.data.unshift(action.payload)
+        state.current = action.payload
       })
-      .addCase(getVesselOwnerByUserIdAsync.rejected, (state, action) => {
-        state.vesselOwnerFetchStatus = 'rejected'
-        state.errors = action.error
+      .addCase(createVesselOwnerAsync.rejected, (state, action) => {
+        state.status.create = 'rejected'
+        state.error = action.payload
       })
 
-      // update...
       .addCase(updateVesselOwnerByIdAsync.pending, (state) => {
-        state.vesselOwnerUpdateStatus = 'pending'
+        state.status.update = 'pending'
       })
       .addCase(updateVesselOwnerByIdAsync.fulfilled, (state, action) => {
-        state.vesselOwnerUpdateStatus = 'fulfilled'
-        const index = state.vesselOwners.findIndex((vesselOwner) => vesselOwner._id === action.payload._id)
-        if (index !== -1) state.vesselOwners[index] = action.payload
+        state.status.update = 'fulfilled'
+        const idx = state.list.data.findIndex(v => v._id === action.payload._id)
+        if (idx !== -1) state.list.data[idx] = action.payload
       })
       .addCase(updateVesselOwnerByIdAsync.rejected, (state, action) => {
-        state.vesselOwnerUpdateStatus = 'rejected'
-        state.errors = action.error
+        state.status.update = 'rejected'
+        state.error = action.payload
+      })
+
+      .addCase(getVesselOwnerByUserIdAsync.fulfilled, (state, action) => {
+        state.selectedByUser = action.payload
       })
   }
 })
 
-// exports
-export const { resetCurrentVesselOwner, resetVesselOwnerUpdateStatus, resetVesselOwnerFetchStatus } = vesselOwnerSlice.actions
-
-export const selectVesselOwnerStatus = (state) => state.VesselOwnerSlice.status
-export const selectVesselOwners = (state) => state.VesselOwnerSlice.vesselOwners
-export const selectVesselOwnersErrors = (state) => state.VesselOwnerSlice.errors
-export const selectVesselOwnersSuccessMessage = (state) => state.VesselOwnerSlice.successMessage
-export const selectCurrentVesselOwner = (state) => state.VesselOwnerSlice.currentVesselOwner
-export const selectVesselOwnerUpdateStatus = (state) => state.VesselOwnerSlice.vesselOwnerUpdateStatus
-export const selectVesselOwnerFetchStatus = (state) => state.VesselOwnerSlice.vesselOwnerFetchStatus
-export const selectSelectedVesselOwners = (state) => state.VesselOwnerSlice.selectedVesselOwners
-export const selectVesselOwnersTotalCount = (state) => state.VesselOwnerSlice.totalCount
+export const {
+  resetStatuses,
+  resetCurrentVesselOwner,
+  setPaginationModel,
+  setSortModel,
+  setSearchValue,
+} = vesselOwnerSlice.actions
 
 export default vesselOwnerSlice.reducer
+
+const base = (state) => state.VesselOwnerSlice
+
+export const selectVesselOwners = (state) => base(state).list.data
+export const selectVesselOwnersMeta = (state) => base(state).list.meta
+export const selectVesselOwnersAggregates = (state) => base(state).list.aggregates
+export const selectVesselOwnersContext = (state) => base(state).list.context
+
+export const selectTotalCount = (state) =>
+  base(state).list.meta.pagination.totalRecords
+
+export const selectFetchStatus = (state) => base(state).status.fetch
+export const selectCreateStatus = (state) => base(state).status.create
+export const selectUpdateStatus = (state) => base(state).status.update
+
+export const selectActiveCount = (state) =>
+  base(state).list.aggregates.counts.active
+
+export const selectDeletedCount = (state) =>
+  base(state).list.aggregates.counts.deleted
+
+export const selectPaginationModel = (state) =>
+  base(state).ui.paginationModel
+
+export const selectSortModel = (state) =>
+  base(state).ui.sortModel
+
+export const selectSearchValue = (state) =>
+  base(state).ui.searchValue

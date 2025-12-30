@@ -1,8 +1,8 @@
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
+const { UPLOAD_RULES } = require('./uploadRules')
 
-// Helper function to create directory if it doesn't exist
 const createDirectory = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true })
@@ -10,7 +10,6 @@ const createDirectory = (dirPath) => {
   }
 }
 
-// Robust coercion + sanitize helper: if value is array take first, coerce to string
 const coerceToString = (value) => {
   if (value === undefined || value === null) return ''
   if (Array.isArray(value)) return String(value[0] ?? '')
@@ -31,26 +30,35 @@ const sanitizeFolderName = (name) => {
 // Dynamic storage configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // read uploadFolder and company fields defensively (take first if array)
-    const rawFolder = coerceToString(req.body.uploadFolder) || 'vesselOwners'
-    const rawCompany = coerceToString(req.body.company_shortname) || coerceToString(req.body.company_name) || 'unknown'
-
+    // console.log("req.body: ",req.body);
+    const rawFolder = coerceToString(req.body.uploadFolder) || 'default'
     const folderName = sanitizeFolderName(rawFolder)
-    const sanitizedCompanyName = sanitizeFolderName(rawCompany)
 
-    // Create path: uploads/<folderName>/<companyName>/
-    const uploadDir = path.join(__dirname, '..', 'uploads', folderName, sanitizedCompanyName)
+    const rules = UPLOAD_RULES[folderName] || []
 
-    // Create directory if it doesn't exist
+    let rawSubFolderValue = 'unknown'
+
+    for (const field of rules) {
+  const value = coerceToString(req.body[field])
+  console.log("value: ",value);
+  
+  if (value) {
+    rawSubFolderValue = value
+    break
+  }
+}
+
+const subFolderName = sanitizeFolderName(rawSubFolderValue)
+
+    const uploadDir = path.join(__dirname, '..', 'uploads', folderName, subFolderName)
+
     createDirectory(uploadDir)
 
-    // store info for later use (controller can compute web path if needed)
-    req._uploadInfo = { folderName, sanitizedCompanyName, uploadDir }
+    req._uploadInfo = { folderName, subFolderName, uploadDir }
 
     cb(null, uploadDir)
   },
   filename: function (req, file, cb) {
-    // Generate unique filename: fieldname-timestamp-random-originalname
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
     const ext = path.extname(file.originalname)
     const nameWithoutExt = path.basename(file.originalname, ext)
@@ -85,11 +93,10 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB max file size per file
+    fileSize: 10 * 1024 * 1024
   }
 })
 
-// Error handling middleware
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -112,29 +119,23 @@ const handleMulterError = (err, req, res, next) => {
   next()
 }
 
-// Export middleware for different field configurations
 module.exports = {
-  // For vessel owner form with company_logo, contract and license fields
   uploadVesselOwnerFiles: upload.fields([
-    { name: 'company_logo', maxCount: 1 },    // Image - single file
-    { name: 'contract', maxCount: 1 },        // Contract document
-    { name: 'license', maxCount: 1 },         // License document
-    { name: 'documents', maxCount: 10 }       // additional multiple docs
- ]),
+    { name: 'company_logo', maxCount: 1 },
+    { name: 'contract', maxCount: 1 },
+    { name: 'license', maxCount: 1 }
+  ]),
 
-  // Generic single file upload
+  uploadVesselFiles: upload.fields([
+    { name: 'vessel_image', maxCount: 1 },
+    { name: 'vessel_documents', maxCount: 10 }
+  ]),
+
   uploadSingle: (fieldName = 'file') => upload.single(fieldName),
-
-  // Generic multiple files upload
   uploadMultiple: (fieldName = 'files', maxCount = 10) => upload.array(fieldName, maxCount),
-
-  // Generic fields upload (for any form)
   uploadFields: (fields) => upload.fields(fields),
-
-  // Error handler
   handleMulterError,
 
-  // Utility function to delete file
   deleteFile: (filePath) => {
     try {
       if (fs.existsSync(filePath)) {
