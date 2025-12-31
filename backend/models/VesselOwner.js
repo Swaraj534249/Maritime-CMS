@@ -30,9 +30,9 @@ const vesselOwnerSchema = new Schema(
       path: { type: String, required: false },
       mimetype: { type: String, required: false },
       size: { type: Number, required: false },
-      uploadedAt: { type: Date, default: Date.now }
+      uploadedAt: { type: Date, default: Date.now },
     },
-    
+
     // Contract document - main and old
     contract: {
       main: {
@@ -41,7 +41,7 @@ const vesselOwnerSchema = new Schema(
         path: { type: String, required: false },
         mimetype: { type: String, required: false },
         size: { type: Number, required: false },
-        uploadedAt: { type: Date }
+        uploadedAt: { type: Date },
       },
       old: {
         filename: { type: String, required: false },
@@ -49,10 +49,10 @@ const vesselOwnerSchema = new Schema(
         path: { type: String, required: false },
         mimetype: { type: String, required: false },
         size: { type: Number, required: false },
-        uploadedAt: { type: Date }
-      }
+        uploadedAt: { type: Date },
+      },
     },
-    
+
     // License document - main and old
     license: {
       main: {
@@ -61,7 +61,7 @@ const vesselOwnerSchema = new Schema(
         path: { type: String, required: false },
         mimetype: { type: String, required: false },
         size: { type: Number, required: false },
-        uploadedAt: { type: Date }
+        uploadedAt: { type: Date },
       },
       old: {
         filename: { type: String, required: false },
@@ -69,8 +69,8 @@ const vesselOwnerSchema = new Schema(
         path: { type: String, required: false },
         mimetype: { type: String, required: false },
         size: { type: Number, required: false },
-        uploadedAt: { type: Date }
-      }
+        uploadedAt: { type: Date },
+      },
     },
 
     isDeleted: {
@@ -78,7 +78,7 @@ const vesselOwnerSchema = new Schema(
       default: false,
     },
   },
-  { timestamps: true, versionKey: false }
+  { timestamps: true, versionKey: false },
 );
 
 module.exports = mongoose.model("VesselOwner", vesselOwnerSchema);

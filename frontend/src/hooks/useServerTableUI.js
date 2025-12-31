@@ -1,34 +1,34 @@
-import { useDispatch } from 'react-redux'
+import { useDispatch } from "react-redux";
 
 export const useServerTableUI = ({
   paginationModel,
   setPaginationModel,
   setSortModel,
-  setSearchValue
+  setSearchValue,
 }) => {
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
 
   const handlePaginationModelChange = (model) => {
     if (model.pageSize !== paginationModel.pageSize) {
-      dispatch(setPaginationModel({ page: 0, pageSize: model.pageSize }))
+      dispatch(setPaginationModel({ page: 0, pageSize: model.pageSize }));
     } else {
-      dispatch(setPaginationModel(model))
+      dispatch(setPaginationModel(model));
     }
-  }
+  };
 
   const handleSortModelChange = (newModel) => {
-    dispatch(setSortModel(newModel))
-    dispatch(setPaginationModel({ ...paginationModel, page: 0 }))
-  }
+    dispatch(setSortModel(newModel));
+    dispatch(setPaginationModel({ ...paginationModel, page: 0 }));
+  };
 
   const handleSearch = (value) => {
-    dispatch(setSearchValue(value))
-    dispatch(setPaginationModel({ ...paginationModel, page: 0 }))
-  }
+    dispatch(setSearchValue(value));
+    dispatch(setPaginationModel({ ...paginationModel, page: 0 }));
+  };
 
   return {
     handlePaginationModelChange,
     handleSortModelChange,
-    handleSearch
-  }
-}
+    handleSearch,
+  };
+};

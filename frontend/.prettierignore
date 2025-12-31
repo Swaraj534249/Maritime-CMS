@@ -1,0 +1,8 @@
+.env
+.env.example
+package.json
+README.md
+package-lock.json
+node_modules/*
+public/*
+build/*

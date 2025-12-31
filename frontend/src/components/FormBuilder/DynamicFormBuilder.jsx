@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { yupResolver } from '@hookform/resolvers/yup'
+import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import {
   TextField,
   Button,
@@ -16,17 +16,16 @@ import {
   Box,
   Typography,
   Chip,
-  IconButton,
-} from '@mui/material'
-import CloudUploadIcon from '@mui/icons-material/CloudUpload'
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import ImageIcon from '@mui/icons-material/Image'
-import DeleteIcon from '@mui/icons-material/Delete'
+} from "@mui/material";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import ImageIcon from "@mui/icons-material/Image";
 
 /**
  * Dynamic Form Builder Component with File Upload Support
  */
 const DynamicFormBuilder = ({
+  formId,
   fields = [],
   validationSchema,
   defaultValues = {},
@@ -34,7 +33,7 @@ const DynamicFormBuilder = ({
   onCancel,
   isEditMode = false,
   submitButtonText,
-  cancelButtonText = 'Cancel',
+  cancelButtonText = "Cancel",
   existingFiles = {}, // For edit mode: { company_logo: {...}, contract: {main, old}, license: {main, old} }
 }) => {
   const {
@@ -44,57 +43,56 @@ const DynamicFormBuilder = ({
   } = useForm({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
     defaultValues,
-  })
+  });
 
   // Local state for file uploads
-  const [uploadedFiles, setUploadedFiles] = useState({})
+  const [uploadedFiles, setUploadedFiles] = useState({});
 
   const handleFileChange = (fieldName, files, multiple = false) => {
     if (multiple) {
-      const existingFiles = uploadedFiles[fieldName] || []
-      setUploadedFiles(prev => ({
+      const existingFiles = uploadedFiles[fieldName] || [];
+      setUploadedFiles((prev) => ({
         ...prev,
-        [fieldName]: [...existingFiles, ...Array.from(files)]
-      }))
+        [fieldName]: [...existingFiles, ...Array.from(files)],
+      }));
     } else {
-      setUploadedFiles(prev => ({
+      setUploadedFiles((prev) => ({
         ...prev,
-        [fieldName]: files[0] || null
-      }))
+        [fieldName]: files[0] || null,
+      }));
     }
-  }
+  };
 
   const removeFile = (fieldName, index = null) => {
     if (index !== null) {
       // Remove specific file from array
-      setUploadedFiles(prev => ({
+      setUploadedFiles((prev) => ({
         ...prev,
-        [fieldName]: prev[fieldName].filter((_, i) => i !== index)
-      }))
+        [fieldName]: prev[fieldName].filter((_, i) => i !== index),
+      }));
     } else {
       // Remove single file
-      setUploadedFiles(prev => ({
+      setUploadedFiles((prev) => ({
         ...prev,
-        [fieldName]: null
-      }))
+        [fieldName]: null,
+      }));
     }
-  }
+  };
 
   const handleFormSubmit = (data) => {
-    // Merge form data with uploaded files
-    onSubmit(data, uploadedFiles)
-  }
+    onSubmit(data, uploadedFiles);
+  };
 
   const renderFileUpload = (field) => {
-    const { name, label, accept = '*', multiple = false, helperText } = field
-    const files = uploadedFiles[name]
-    const existingFileData = existingFiles[name]
+    const { name, label, accept = "*", multiple = false, helperText } = field;
+    const files = uploadedFiles[name];
+    const existingFileData = existingFiles[name];
 
     return (
       <Box>
         <input
           accept={accept}
-          style={{ display: 'none' }}
+          style={{ display: "none" }}
           id={`file-upload-${name}`}
           type="file"
           multiple={multiple}
@@ -104,7 +102,9 @@ const DynamicFormBuilder = ({
           <Button
             variant="outlined"
             component="span"
-            startIcon={accept.includes('image') ? <ImageIcon /> : <CloudUploadIcon />}
+            startIcon={
+              accept.includes("image") ? <ImageIcon /> : <CloudUploadIcon />
+            }
             fullWidth
             size="small"
           >
@@ -113,13 +113,23 @@ const DynamicFormBuilder = ({
         </label>
 
         {helperText && (
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            sx={{ mt: 0.5 }}
+          >
             {helperText}
           </Typography>
         )}
 
         {errors[name] && (
-          <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>
+          <Typography
+            variant="caption"
+            color="error"
+            display="block"
+            sx={{ mt: 0.5 }}
+          >
             {errors[name]?.message}
           </Typography>
         )}
@@ -130,7 +140,13 @@ const DynamicFormBuilder = ({
             {(multiple ? files : [files]).map((file, idx) => (
               <Chip
                 key={idx}
-                icon={accept.includes('image') ? <ImageIcon /> : <InsertDriveFileIcon />}
+                icon={
+                  accept.includes("image") ? (
+                    <ImageIcon />
+                  ) : (
+                    <InsertDriveFileIcon />
+                  )
+                }
                 label={`${file.name} (${(file.size / 1024).toFixed(2)} KB)`}
                 onDelete={() => removeFile(name, multiple ? idx : null)}
                 size="small"
@@ -143,7 +159,11 @@ const DynamicFormBuilder = ({
         {/* Display existing files in edit mode */}
         {isEditMode && existingFileData && (
           <Box sx={{ mt: 1 }}>
-            <Typography variant="caption" color="text.secondary" display="block">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
               Existing Files:
             </Typography>
             <Stack spacing={1} sx={{ mt: 0.5 }}>
@@ -154,7 +174,10 @@ const DynamicFormBuilder = ({
                   {existingFileData.main?.filename && (
                     <Chip
                       icon={<InsertDriveFileIcon />}
-                      label={`Main: ${existingFileData.main.originalName || existingFileData.main.filename}`}
+                      label={`Main: ${
+                        existingFileData.main.originalName ||
+                        existingFileData.main.filename
+                      }`}
                       size="small"
                       color="success"
                       variant="outlined"
@@ -164,7 +187,10 @@ const DynamicFormBuilder = ({
                   {existingFileData.old?.filename && (
                     <Chip
                       icon={<InsertDriveFileIcon />}
-                      label={`Old: ${existingFileData.old.originalName || existingFileData.old.filename}`}
+                      label={`Old: ${
+                        existingFileData.old.originalName ||
+                        existingFileData.old.filename
+                      }`}
                       size="small"
                       variant="outlined"
                     />
@@ -174,8 +200,16 @@ const DynamicFormBuilder = ({
                 /* Regular file (like company_logo) */
                 existingFileData.filename && (
                   <Chip
-                    icon={accept.includes('image') ? <ImageIcon /> : <InsertDriveFileIcon />}
-                    label={existingFileData.originalName || existingFileData.filename}
+                    icon={
+                      accept.includes("image") ? (
+                        <ImageIcon />
+                      ) : (
+                        <InsertDriveFileIcon />
+                      )
+                    }
+                    label={
+                      existingFileData.originalName || existingFileData.filename
+                    }
                     size="small"
                     variant="outlined"
                   />
@@ -185,43 +219,41 @@ const DynamicFormBuilder = ({
           </Box>
         )}
       </Box>
-    )
-  }
+    );
+  };
 
   const renderField = (field) => {
     const {
       name,
       label,
-      type = 'text',
+      type = "text",
       gridSize = { xs: 12, sm: 6 },
       options = [],
       multiline = false,
       rows = 3,
       disabled = false,
       placeholder,
-      accept,
-      multiple = false,
       helperText,
-    } = field
+    } = field;
 
     // Handle file upload type
-    if (type === 'file') {
+    if (type === "file") {
       return (
         <Grid item {...gridSize} key={name}>
           {renderFileUpload(field)}
         </Grid>
-      )
+      );
     }
 
     const commonProps = {
       label,
       fullWidth: true,
-      size: 'small',
+      size: "small",
       error: !!errors[name],
       helperText: errors[name]?.message || helperText,
       disabled,
       placeholder,
-    }
+    };
 
     return (
       <Grid item {...gridSize} key={name}>
@@ -230,25 +262,23 @@ const DynamicFormBuilder = ({
           control={control}
           render={({ field: controllerField }) => {
             switch (type) {
-              case 'select':
+              case "select":
                 return (
-                  <TextField
-                    {...controllerField}
-                    {...commonProps}
-                    select
-                  >
+                  <TextField {...controllerField} {...commonProps} select>
                     {options.map((option) => (
                       <MenuItem
-                        key={typeof option === 'object' ? option.value : option}
-                        value={typeof option === 'object' ? option.value : option}
+                        key={typeof option === "object" ? option.value : option}
+                        value={
+                          typeof option === "object" ? option.value : option
+                        }
                       >
-                        {typeof option === 'object' ? option.label : option}
+                        {typeof option === "object" ? option.label : option}
                       </MenuItem>
                     ))}
                   </TextField>
-                )
+                );
 
-              case 'checkbox':
+              case "checkbox":
                 return (
                   <FormControlLabel
                     control={
@@ -260,46 +290,49 @@ const DynamicFormBuilder = ({
                     }
                     label={label}
                   />
-                )
+                );
 
-              case 'radio':
+              case "radio":
                 return (
                   <>
                     <FormLabel component="legend">{label}</FormLabel>
                     <RadioGroup {...controllerField}>
                       {options.map((option) => (
                         <FormControlLabel
-                          key={typeof option === 'object' ? option.value : option}
-                          value={typeof option === 'object' ? option.value : option}
+                          key={
+                            typeof option === "object" ? option.value : option
+                          }
+                          value={
+                            typeof option === "object" ? option.value : option
+                          }
                           control={<Radio />}
-                          label={typeof option === 'object' ? option.label : option}
+                          label={
+                            typeof option === "object" ? option.label : option
+                          }
                           disabled={disabled}
                         />
                       ))}
                     </RadioGroup>
                   </>
-                )
+                );
 
-              case 'autocomplete':
+              case "autocomplete":
                 return (
                   <Autocomplete
                     {...controllerField}
                     options={options}
                     getOptionLabel={(option) =>
-                      typeof option === 'object' ? option.label : option
+                      typeof option === "object" ? option.label : option
                     }
                     onChange={(_, data) => controllerField.onChange(data)}
                     renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        {...commonProps}
-                      />
+                      <TextField {...params} {...commonProps} />
                     )}
                     disabled={disabled}
                   />
-                )
+                );
 
-              case 'textarea':
+              case "textarea":
                 return (
                   <TextField
                     {...controllerField}
@@ -307,7 +340,7 @@ const DynamicFormBuilder = ({
                     multiline
                     rows={rows}
                   />
-                )
+                );
 
               default:
                 return (
@@ -318,20 +351,20 @@ const DynamicFormBuilder = ({
                     multiline={multiline}
                     rows={multiline ? rows : undefined}
                   />
-                )
+                );
             }
           }}
         />
       </Grid>
-    )
-  }
+    );
+  };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)}>
+    <form id={formId} onSubmit={handleSubmit(handleFormSubmit)}>
       <Grid container spacing={2.5}>
         {fields.map((field) => renderField(field))}
 
-        <Grid item xs={12}>
+        {/* <Grid item xs={12}>
           <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 2 }}>
             <Button
               variant="outlined"
@@ -350,10 +383,10 @@ const DynamicFormBuilder = ({
                 : submitButtonText || (isEditMode ? 'Update' : 'Create')}
             </Button>
           </Stack>
-        </Grid>
+        </Grid> */}
       </Grid>
     </form>
-  )
-}
+  );
+};
 
-export default DynamicFormBuilder
+export default DynamicFormBuilder;

@@ -7,9 +7,9 @@ exports.buildListResponse = ({
   sortField,
   sortOrder,
   aggregates = {},
-  context = {}
+  context = {},
 }) => {
-  const totalPages = Math.ceil(totalRecords / pageSize)
+  const totalPages = Math.ceil(totalRecords / pageSize);
 
   return {
     result: {
@@ -21,14 +21,14 @@ exports.buildListResponse = ({
           totalRecords,
           totalPages,
           hasNextPage: page < totalPages,
-          hasPrevPage: page > 1
+          hasPrevPage: page > 1,
         },
         searchValue,
         sortField,
-        sortOrder
+        sortOrder,
       },
       aggregates,
-      context
-    }
-  }
-}
+      context,
+    },
+  };
+};
