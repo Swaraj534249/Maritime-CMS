@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  getAllVesselsAsync,
+  fetchVesselsAsync,
+  toggleVesselStatusAsync,
   selectTotalCount,
   selectUpdateStatus,
   selectVesselOwnerContext,
   selectVessels,
+  selectPaginationModel,
+  selectSortModel,
+  selectSearchValue,
+  resetStatuses,
 } from "../../vessel/VesselSlice";
 import {
   Stack,
@@ -22,24 +27,14 @@ import {
   Avatar,
   Chip,
   IconButton as MuiIconButton,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Badge,
   DialogActions,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import CloseIcon from "@mui/icons-material/Close";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import DescriptionIcon from "@mui/icons-material/Description";
-import DownloadIcon from "@mui/icons-material/Download";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ArticleIcon from "@mui/icons-material/Article";
-import BadgeIcon from "@mui/icons-material/Badge";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import VesselForm from "./VesselForm";
@@ -48,8 +43,8 @@ import { toast } from "react-toastify";
 import { useRowActions } from "../../../hooks/useRowActions";
 import { useDocumentActions } from "../../../hooks/useDocumentActions";
 import { getFileIcon, getFileURL, isPDF } from "../../../utils/fileUtils";
-import DocumentSection from "../../../components/Documents/DocumentSection";
 import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
+import { setPaginationModel, setSearchValue, setSortModel } from "../../vessel/VesselSlice";
 
 export const Vessels = () => {
   const { id: vesselOwnerId } = useParams();
@@ -58,21 +53,17 @@ export const Vessels = () => {
   const totalCount = useSelector(selectTotalCount);
   const updateStatus = useSelector(selectUpdateStatus);
   const owner = useSelector(selectVesselOwnerContext);
+  const paginationModel = useSelector(selectPaginationModel);
+  const sortModel = useSelector(selectSortModel);
+  const searchValue = useSelector(selectSearchValue);
 
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
-  const [searchValue, setSearchValue] = useState("");
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 10,
-  });
-  const [sortModel, setSortModel] = useState([]);
+
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState({
     vessel_documents: null,
   });
-  const [refreshKey, setRefreshKey] = useState(0);
-
   const { anchorEl, open, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
 
@@ -102,7 +93,7 @@ export const Vessels = () => {
     if (sortOrder) params.sortOrder = sortOrder;
     if (searchValue) params.searchValue = searchValue;
     if (vesselOwnerId) params.vesselOwnerId = vesselOwnerId;
-    dispatch(getAllVesselsAsync({ params, signal: controller }));
+    dispatch(fetchVesselsAsync({ params, signal: controller }));
   };
 
   useEffect(() => {
@@ -126,7 +117,31 @@ export const Vessels = () => {
     return () => {
       controller.abort();
     };
-  }, [paginationModel, sortModel, searchValue, refreshKey, vesselOwnerId]);
+  }, [paginationModel, sortModel, searchValue, vesselOwnerId]);
+
+ useEffect(() => {
+  if (updateStatus === "fulfilled") {
+    toast.success("Vessel status updated successfully");
+    dispatch(resetStatuses());
+  }
+
+  if (updateStatus === "rejected") {
+    toast.error("Failed to update vessel status");
+    dispatch(resetStatuses());
+  }
+}, [updateStatus, dispatch]);
+
+
+  useEffect(() => {
+    dispatch(setSearchValue(""));
+    dispatch(setSortModel([]));
+    dispatch(
+      setPaginationModel({
+        page: 0,
+        pageSize: paginationModel.pageSize, // read from store
+      })
+    );
+  }, [vesselOwnerId]);
 
   const handleAddNew = () => {
     setEditData(null);
@@ -140,8 +155,8 @@ export const Vessels = () => {
     handleMenuClose();
   };
 
-  const handleDelete = () => {
-    toast.info("Delete functionality not yet implemented");
+  const handleToggleStatus = () => {
+    dispatch(toggleVesselStatusAsync(selectedRowId));
     handleMenuClose();
   };
 
@@ -314,9 +329,8 @@ export const Vessels = () => {
       minWidth: 160,
       sortable: true,
       valueGetter: (params) =>
-        `${params.row.imo_Number || ""} ${
-          params.row.grt ? " / " + params.row.grt : ""
-        } ${params.row.bhp ? " / " + params.row.bhp : ""}`.trim(),
+        `${params.row.imo_Number || ""} ${params.row.grt ? " / " + params.row.grt : ""
+          } ${params.row.bhp ? " / " + params.row.bhp : ""}`.trim(),
     },
     {
       field: "files",
@@ -398,9 +412,10 @@ export const Vessels = () => {
             <EditOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
             Edit
           </MenuItem>
-          <MenuItem onClick={handleDelete}>
-            <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
-            Delete
+          <MenuItem disabled onClick={handleToggleStatus}>
+            {vessels.find(v => v._id === selectedRowId)?.isDeleted
+              ? "Restore"
+              : "Deactivate"}
           </MenuItem>
         </Menu>
 

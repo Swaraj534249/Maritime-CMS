@@ -17,16 +17,16 @@ export const createVessel = async (data) => {
   }
 };
 
-export const getVesselByUserId = async (id) => {
+export const getVesselById = async (id) => {
   try {
-    const res = await axiosi.get(`/vessels/user/${id}`);
+    const res = await axiosi.get(`/vessels/${id}`);
     return res.data;
   } catch (error) {
     throw error.response?.data ?? error;
   }
 };
 
-export const getAllVessels = async (params = {}, signal) => {
+export const fetchVessels = async (params = {}, signal) => {
   try {
     const res = await axiosi.get("/vessels", { params, signal });
     return normalizeListResponse(res);
@@ -34,15 +34,6 @@ export const getAllVessels = async (params = {}, signal) => {
     if (error.name === "CanceledError" || error.code === "ERR_CANCELED") {
       throw error;
     }
-    throw error.response?.data ?? error;
-  }
-};
-
-export const fetchVesselByVesselOwnerId = async (id) => {
-  try {
-    const res = await axiosi.get(`/vessels/vesselOwner/${id}`);
-    return res.data;
-  } catch (error) {
     throw error.response?.data ?? error;
   }
 };
@@ -62,5 +53,16 @@ export const updateVesselById = async (data) => {
     return res.data;
   } catch (error) {
     throw error.response?.data ?? error;
+  }
+};
+
+export const toggleVesselStatus = async (vesselId) => {
+  try {
+    const res = await axiosi.patch(
+      `/vessels/${vesselId}/toggle-status`
+    );
+    return res.data;
+  } catch (error) {
+    throw error.response?.data || error;
   }
 };

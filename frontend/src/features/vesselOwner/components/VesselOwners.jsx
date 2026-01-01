@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  getAllVesselOwnersAsync,
   resetStatuses,
   selectTotalCount,
   selectUpdateStatus,
@@ -14,6 +13,9 @@ import {
   setPaginationModel,
   setSortModel,
   setSearchValue,
+  fetchVesselOwnersAsync,
+  toggleVesselOwnerStatusAsync,
+  resetVesselOwnerTableState,
 } from "../../vesselOwner/VesselOwnerSlice";
 import {
   Button,
@@ -97,6 +99,16 @@ export const VesselOwners = () => {
     [],
   );
 
+//   const location = useLocation();
+//  const navigationType = useNavigationType();
+
+// useEffect(() => {
+//   // Only KEEP state when coming back via browser back button
+//   if (navigationType !== "POP") {
+//     dispatch(resetVesselOwnerTableState());
+//   }
+// }, [navigationType, dispatch]);
+
   const fetchPage = (
     pageOneBased,
     limit,
@@ -109,7 +121,7 @@ export const VesselOwners = () => {
     if (sortField) params.sortField = sortField;
     if (sortOrder) params.sortOrder = sortOrder;
     if (searchValue) params.searchValue = searchValue;
-    dispatch(getAllVesselOwnersAsync({ params, signal: controller }));
+    dispatch(fetchVesselOwnersAsync({ params, signal: controller }));
   };
 
   useEffect(() => {
@@ -134,6 +146,18 @@ export const VesselOwners = () => {
     };
   }, [paginationModel, sortModel, searchValue, refreshKey]);
 
+   useEffect(() => {
+    if (updateStatus === "fulfilled") {
+      toast.success("Vessel Owner status updated successfully");
+      dispatch(resetStatuses());
+    }
+  
+    if (updateStatus === "rejected") {
+      toast.error("Failed to update vessel status");
+      dispatch(resetStatuses());
+    }
+  }, [updateStatus, dispatch]);
+
   const handleAddNew = () => {
     setEditData(null);
     setOpenModal(true);
@@ -146,10 +170,10 @@ export const VesselOwners = () => {
     handleMenuClose();
   };
 
-  const handleDelete = () => {
-    toast.info("Delete functionality not yet implemented");
-    handleMenuClose();
-  };
+ const handleToggleStatus = () => {
+  dispatch(toggleVesselOwnerStatusAsync(selectedRowId));
+  handleMenuClose();
+};
 
   const handleCloseModal = () => {
     setOpenModal(false);
@@ -446,7 +470,11 @@ export const VesselOwners = () => {
             <EditOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
             Edit
           </MenuItem>
-          <MenuItem onClick={handleDelete}>Delete</MenuItem>
+          <MenuItem disabled onClick={handleToggleStatus}>
+  {vesselOwners.find(v => v._id === selectedRowId)?.isDeleted
+    ? "Restore"
+    : "Deactivate"}
+</MenuItem>
         </Menu>
 
         <DocumentsDialog

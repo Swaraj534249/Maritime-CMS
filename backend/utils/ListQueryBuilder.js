@@ -1,5 +1,4 @@
 exports.buildListQuery = ({
-  Model,
   filter = {},
   searchValue,
   searchFields = [],
@@ -9,15 +8,29 @@ exports.buildListQuery = ({
   sortOrder = "asc",
   extraFilter = {},
 }) => {
-  const queryFilter = { ...filter, ...extraFilter };
+  const andConditions = [];
+
+  if (filter && Object.keys(filter).length) {
+    andConditions.push(filter);
+  }
+
+  if (extraFilter && Object.keys(extraFilter).length) {
+    andConditions.push(extraFilter);
+  }
 
   if (searchValue && searchFields.length) {
     const re = new RegExp(
       searchValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-      "i",
+      "i"
     );
-    queryFilter.$or = searchFields.map((field) => ({ [field]: re }));
+
+    andConditions.push({
+      $or: searchFields.map((field) => ({ [field]: re })),
+    });
   }
+
+  const queryFilter =
+    andConditions.length > 0 ? { $and: andConditions } : {};
 
   const skip = pageSize * (page - 1);
   const sort = { [sortField]: sortOrder === "desc" ? -1 : 1 };

@@ -4,12 +4,12 @@ const path = require("path");
 const cors = require("cors");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
-const authRoutes = require("./routes/Auth");
-const userRoutes = require("./routes/User");
+const authRoutes = require("./routes/auth.route");
+const userRoutes = require("./routes/user.route");
 
-const vesselOwnerRoutes = require("./routes/VesselOwner");
-const vesselRoutes = require("./routes/Vessel");
-const crewingAgentRoutes = require("./routes/CrewingAgent");
+const vesselOwnerRoutes = require("./routes/vesselOwner.route");
+const vesselRoutes = require("./routes/vessel.route");
+const crewingAgentRoutes = require("./routes/crewingAgent.route");
 
 const { connectToDB } = require("./database/db");
 

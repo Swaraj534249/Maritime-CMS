@@ -128,7 +128,7 @@ const VesselForm = ({
         toast.success("Vessel updated successfully");
       } else {
         await dispatch(createVesselAsync(data)).unwrap();
-        toast.success("Vessel owner created successfully");
+        toast.success("Vessel created successfully");
       }
 
       onClose();

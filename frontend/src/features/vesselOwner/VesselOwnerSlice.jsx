@@ -1,8 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import {
   createVesselOwner,
-  getAllVesselOwners,
-  getVesselOwnerByUserId,
+  fetchVesselOwners,
+  getVesselOwnerById,
+  toggleVesselOwnerStatus,
   updateVesselOwnerById,
 } from "./VesselOwnerApi";
 
@@ -51,11 +52,11 @@ const initialState = {
   error: null,
 };
 
-export const getAllVesselOwnersAsync = createAsyncThunk(
-  "vesselOwners/fetchAll",
+export const fetchVesselOwnersAsync = createAsyncThunk(
+  "vesselOwners/fetch",
   async ({ params = {}, signal } = {}, { rejectWithValue }) => {
     try {
-      return await getAllVesselOwners(params, signal);
+      return await fetchVesselOwners(params, signal);
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
@@ -84,11 +85,22 @@ export const updateVesselOwnerByIdAsync = createAsyncThunk(
   },
 );
 
-export const getVesselOwnerByUserIdAsync = createAsyncThunk(
-  "vesselOwners/getByUser",
+export const fetchVesselOwnerByIdAsync = createAsyncThunk(
+  "vesselOwners/getById",
   async (id, { rejectWithValue }) => {
     try {
-      return await getVesselOwnerByUserId(id);
+      return await getVesselOwnerById(id);
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  },
+);
+
+export const toggleVesselOwnerStatusAsync = createAsyncThunk(
+  "vesselOwners/toggleStatus",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await toggleVesselOwnerStatus(payload);
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
@@ -119,13 +131,19 @@ const vesselOwnerSlice = createSlice({
     setSearchValue(state, action) {
       state.ui.searchValue = action.payload;
     },
+
+    resetVesselOwnerTableState: (state) => {
+      state.paginationModel = { page: 0, pageSize: 10 };
+      state.sortModel = [];
+      state.searchValue = "";
+    }
   },
   extraReducers: (builder) => {
     builder
-      .addCase(getAllVesselOwnersAsync.pending, (state) => {
+      .addCase(fetchVesselOwnersAsync.pending, (state) => {
         state.status.fetch = "pending";
       })
-      .addCase(getAllVesselOwnersAsync.fulfilled, (state, action) => {
+      .addCase(fetchVesselOwnersAsync.fulfilled, (state, action) => {
         state.status.fetch = "fulfilled";
 
         const { data, meta, aggregates, context } = action.payload || {};
@@ -137,7 +155,7 @@ const vesselOwnerSlice = createSlice({
 
         state.totalCount = meta?.pagination?.totalRecords || 0;
       })
-      .addCase(getAllVesselOwnersAsync.rejected, (state, action) => {
+      .addCase(fetchVesselOwnersAsync.rejected, (state, action) => {
         state.status.fetch = "rejected";
         state.error = action.payload;
       })
@@ -170,8 +188,32 @@ const vesselOwnerSlice = createSlice({
         state.error = action.payload;
       })
 
-      .addCase(getVesselOwnerByUserIdAsync.fulfilled, (state, action) => {
+      .addCase(fetchVesselOwnerByIdAsync.fulfilled, (state, action) => {
         state.selectedByUser = action.payload;
+      })
+
+      .addCase(toggleVesselOwnerStatusAsync.pending, (state) => {
+        state.status.update = "pending";
+      })
+      .addCase(toggleVesselOwnerStatusAsync.fulfilled, (state, action) => {
+        state.status.update = "fulfilled";
+        const updated = action.payload;
+        if (updated.isDeleted) {
+          state.list.data = state.list.data.filter(
+            (item) => item._id !== updated._id
+          );
+        } else {
+          const idx = state.list.data.findIndex(
+            (v) => v._id === updated._id
+          );
+          if (idx !== -1) {
+            state.list.data[idx] = updated;
+          }
+        }
+      })
+      .addCase(toggleVesselOwnerStatusAsync.rejected, (state, action) => {
+        state.status.update = "rejected";
+        state.error = action.payload;
       });
   },
 });
@@ -182,6 +224,7 @@ export const {
   setPaginationModel,
   setSortModel,
   setSearchValue,
+  resetVesselOwnerTableState,
 } = vesselOwnerSlice.actions;
 
 export default vesselOwnerSlice.reducer;

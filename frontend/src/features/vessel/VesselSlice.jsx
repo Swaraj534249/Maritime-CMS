@@ -1,9 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import {
   createVessel,
-  getAllVessels,
-  getVesselByUserId,
-  fetchVesselByVesselOwnerId,
+  fetchVessels,
+  getVesselById,
+  toggleVesselStatus,
   updateVesselById,
 } from "./VesselApi";
 
@@ -51,13 +51,11 @@ const initialState = {
   error: null,
 };
 
-/* ===================== THUNKS ===================== */
-
-export const getAllVesselsAsync = createAsyncThunk(
-  "vessels/fetchAll",
+export const fetchVesselsAsync = createAsyncThunk(
+  "vessels/fetch",
   async ({ params = {}, signal } = {}, { rejectWithValue }) => {
     try {
-      return await getAllVessels(params, signal);
+      return await fetchVessels(params, signal);
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
@@ -86,35 +84,22 @@ export const updateVesselByIdAsync = createAsyncThunk(
   },
 );
 
-export const getVesselByUserIdAsync = createAsyncThunk(
-  "vessels/getByUser",
+export const fetchVesselByIdAsync = createAsyncThunk(
+  "vessels/getById",
   async (id, { rejectWithValue }) => {
     try {
-      return await getVesselByUserId(id);
+      return await getVesselById(id);
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
   },
 );
 
-export const fetchVesselByVesselOwnerIdAsync = createAsyncThunk(
-  "vessels/fetchByOwner",
-  async (ownerId, { rejectWithValue }) => {
+export const toggleVesselStatusAsync = createAsyncThunk(
+  "vessels/toggleStatus",
+  async (payload, { rejectWithValue }) => {
     try {
-      const vessels = await fetchVesselByVesselOwnerId(ownerId);
-      return {
-        data: vessels,
-        meta: {
-          pagination: {
-            page: 1,
-            pageSize: vessels.length,
-            totalRecords: vessels.length,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        },
-      };
+      return await toggleVesselStatus(payload);
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
@@ -147,10 +132,10 @@ const vesselSlice = createSlice({
   extraReducers: (builder) => {
     builder
       /* ---------- Fetch All ---------- */
-      .addCase(getAllVesselsAsync.pending, (state) => {
+      .addCase(fetchVesselsAsync.pending, (state) => {
         state.status.fetch = "pending";
       })
-      .addCase(getAllVesselsAsync.fulfilled, (state, action) => {
+      .addCase(fetchVesselsAsync.fulfilled, (state, action) => {
         state.status.fetch = "fulfilled";
         const { data, meta, aggregates, context } = action.payload || {};
 
@@ -159,7 +144,7 @@ const vesselSlice = createSlice({
         state.list.aggregates = aggregates || initialState.list.aggregates;
         state.list.context = context || {};
       })
-      .addCase(getAllVesselsAsync.rejected, (state, action) => {
+      .addCase(fetchVesselsAsync.rejected, (state, action) => {
         state.status.fetch = "rejected";
         state.error = action.payload;
       })
@@ -177,7 +162,6 @@ const vesselSlice = createSlice({
         state.error = action.payload;
       })
 
-      /* ---------- Update ---------- */
       .addCase(updateVesselByIdAsync.pending, (state) => {
         state.status.update = "pending";
       })
@@ -193,14 +177,35 @@ const vesselSlice = createSlice({
         state.error = action.payload;
       })
 
-      .addCase(fetchVesselByVesselOwnerIdAsync.fulfilled, (state, action) => {
-        state.list.data = action.payload.data || [];
-        state.list.meta = action.payload.meta || initialState.list.meta;
+      .addCase(fetchVesselByIdAsync.fulfilled, (state, action) => {
+        state.selectedByUser = action.payload;
       })
 
-      .addCase(getVesselByUserIdAsync.fulfilled, (state, action) => {
-        state.selectedByUser = action.payload;
+      .addCase(toggleVesselStatusAsync.pending, (state) => {
+        state.status.update = "pending";
+      })
+      .addCase(toggleVesselStatusAsync.fulfilled, (state, action) => {
+        state.status.update = "fulfilled";
+        const updated = action.payload;
+        if (updated.isDeleted) {
+          state.list.data = state.list.data.filter(
+            (item) => item._id !== updated._id
+          );
+        } else {
+          // Restore case
+          const idx = state.list.data.findIndex(
+            (v) => v._id === updated._id
+          );
+          if (idx !== -1) {
+            state.list.data[idx] = updated;
+          }
+        }
+      })
+      .addCase(toggleVesselStatusAsync.rejected, (state, action) => {
+        state.status.update = "rejected";
+        state.error = action.payload;
       });
+
   },
 });
 
