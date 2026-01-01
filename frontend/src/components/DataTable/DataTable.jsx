@@ -1,6 +1,6 @@
-import React from 'react'
-import { Box, Stack, Typography } from '@mui/material'
-import { DataGrid, GridToolbar } from '@mui/x-data-grid'
+import React from "react";
+import { Box, Stack, Typography } from "@mui/material";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 
 const NoRowsOverlay = () => (
   <Stack height="100%" alignItems="center" justifyContent="center">
@@ -8,7 +8,7 @@ const NoRowsOverlay = () => (
       No results found
     </Typography>
   </Stack>
-)
+);
 
 const DataTable = ({
   rows = [],
@@ -25,15 +25,15 @@ const DataTable = ({
   paginationModel,
   onPaginationModelChange,
   rowCount,
-  paginationMode = 'client', // 'server' when parent manages pages
+  paginationMode = "client", // 'server' when parent manages pages
   sortingModel,
   onSortModelChange,
-  sortingMode = 'client',
+  sortingMode = "client",
 }) => {
-  const containerHeight = height || 'calc(100vh - 145px)'
+  const containerHeight = height || "calc(100vh - 145px)";
 
   return (
-    <Box sx={{ width: '100%', height: containerHeight, ...sx }}>
+    <Box sx={{ width: "100%", height: containerHeight, ...sx }}>
       <DataGrid
         rows={rows}
         columns={columns}
@@ -60,22 +60,22 @@ const DataTable = ({
         onSortModelChange={onSortModelChange}
         rowCount={rowCount}
         disableColumnMenu={true}
-         slots={{
+        slots={{
           noRowsOverlay: NoRowsOverlay, // <-- 🔥 CUSTOM "NO DATA" MESSAGE
         }}
         sx={{
-          border: 'none',
-          '& .MuiDataGrid-virtualScroller': {
-            overflow: 'auto',
+          border: "none",
+          "& .MuiDataGrid-virtualScroller": {
+            overflow: "auto",
           },
-          '& .MuiDataGrid-columnHeader': {
-            backgroundColor: '#f5f5f5',
+          "& .MuiDataGrid-columnHeader": {
+            backgroundColor: "#f5f5f5",
             fontWeight: 600,
           },
         }}
       />
     </Box>
-  )
-}
+  );
+};
 
-export default DataTable
+export default DataTable;

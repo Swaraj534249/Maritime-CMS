@@ -7,11 +7,11 @@ import { SignupPage } from "./SignupPage";
 import { UserProfilePage } from "./UserProfilePage";
 
 export {
-    SignupPage,
-    LoginPage,
-    ForgotPasswordPage,
-    ResetPasswordPage,
-    HomePage,
-    UserProfilePage,
-    OtpVerificationPage
-}
+  SignupPage,
+  LoginPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
+  HomePage,
+  UserProfilePage,
+  OtpVerificationPage,
+};

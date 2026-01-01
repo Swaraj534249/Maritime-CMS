@@ -1,3 +1,9 @@
-exports.sanitizeUser=(user)=>{
-    return {_id:user._id,email:user.email,userType:user.userType,isVerified:user.isVerified,isAdmin:user.isAdmin}
-}
+exports.sanitizeUser = (user) => {
+  return {
+    _id: user._id,
+    email: user.email,
+    userType: user.userType,
+    isVerified: user.isVerified,
+    isAdmin: user.isAdmin,
+  };
+};
