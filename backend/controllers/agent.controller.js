@@ -6,15 +6,11 @@ const { sendMail } = require("../utils/Emails");
 const { buildListQuery } = require("../utils/ListQueryBuilder");
 const { buildListResponse } = require("../utils/ListResponseBuilder");
 
-/**
- * Create a new agent
- */
 exports.create = async (req, res) => {
   try {
     const { name, email, password, userType } = req.body;
     const agencyId = req.user.agencyId;
 
-    // Fetch agency details
     const agency = await Agency.findById(agencyId);
 
     if (!agency) {
@@ -27,10 +23,9 @@ exports.create = async (req, res) => {
       });
     }
 
-    // Check agent limit
     const currentAgentsCount = await User.countDocuments({
       agencyId: agency._id,
-      role: "AGENT" || "AGENCY_ADMIN",
+      role: { $in: ["AGENT", "AGENCY_ADMIN"] },
       isActive: true,
     });
 
@@ -40,16 +35,6 @@ exports.create = async (req, res) => {
       });
     }
 
-    // Validate email domain
-    const emailDomain = email.split("@")[1].toLowerCase();
-    
-    if (!agency.isDomainAllowed(emailDomain)) {
-      return res.status(400).json({
-        message: `Email domain not allowed. Allowed domains: ${agency.allowedDomains.join(", ")}`,
-      });
-    }
-
-    // Check if agent already exists
     const existingAgent = await User.findOne({ email });
     if (existingAgent) {
       return res.status(400).json({
@@ -57,10 +42,8 @@ exports.create = async (req, res) => {
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create agent
     const newAgent = new User({
       name,
       email,
@@ -74,16 +57,42 @@ exports.create = async (req, res) => {
 
     await newAgent.save();
 
-    // Send welcome email
     try {
+      const loginUrl = `${process.env.ORIGIN}/login`;
+      
       await sendMail(
         email,
-        "Welcome to the Team",
-        `<p>Hello ${name},</p>
-        <p>Your agent account has been created by ${agency.name}.</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p>Please login and verify your email to get started.</p>
-        <p>Best regards,<br>${agency.name}</p>`
+        "Welcome to the Team - Your Account Details",
+        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Welcome to ${agency.name}!</h2>
+          
+          <p>Hello ${name},</p>
+          
+          <p>Your agent account has been successfully created. Here are your login credentials:</p>
+          
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 10px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 10px 0;"><strong>Password:</strong> ${password}</p>
+            <p style="margin: 10px 0;"><strong>Login URL:</strong> <a href="${loginUrl}" style="color: #007bff;">${loginUrl}</a></p>
+          </div>
+          
+          <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <p style="margin: 0;"><strong>⚠️ Next Steps:</strong></p>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+              <li>Click the login link above or copy it to your browser</li>
+              <li>Login using your email and password</li>
+              <li>You'll be asked to verify your email with an OTP</li>
+              <li>After verification, you can change your password in your profile</li>
+            </ol>
+          </div>
+          
+          <p>If you have any questions or need assistance, please contact your agency administrator.</p>
+          
+          <p style="margin-top: 30px;">Best regards,<br><strong>${agency.name}</strong></p>
+          
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+          <p style="color: #888; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
+        </div>`
       );
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
@@ -116,19 +125,17 @@ exports.list = async (req, res) => {
     const pageNumber = Number(page || 1);
     const pageSizeNumber = Number(limit || 10);
     const agencyId = req.user.agencyId;
+    if (!agencyId) {
+      return res.status(400).json({ message: "Agency ID not found for user" });
+    }
 
-    // Fetch agency details for context
     let agencyContext = null;
-    const agency = await Agency.findById(
-      agencyId,
-      "name allowedDomains maxAgents isActive"
-    ).lean();
+    const agency = await Agency.findById(agencyId, "name maxAgents isActive").lean();
     
     if (agency) {
       agencyContext = {
         _id: agency._id,
         name: agency.name,
-        allowedDomains: agency.allowedDomains || [],
         maxAgents: agency.maxAgents,
         isActive: agency.isActive,
       };
@@ -137,7 +144,7 @@ exports.list = async (req, res) => {
     // Base filter for agents of this agency only
     const extraFilter = {
       agencyId,
-      role: "AGENT",
+      role: { $in: ["AGENT", "AGENCY_ADMIN"] },
     };
 
     // Add isActive filter if provided
@@ -339,12 +346,31 @@ exports.resetPassword = async (req, res) => {
 
     // Send email notification
     try {
+      const loginUrl = `${process.env.ORIGIN}/login`;
+      
       await sendMail(
         agent.email,
-        "Password Reset",
-        `<p>Hello ${agent.name},</p>
-        <p>Your password has been reset by an administrator.</p>
-        <p>Please login with your new password and change it immediately.</p>`
+        "Password Reset Notification",
+        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Password Reset</h2>
+          
+          <p>Hello ${agent.name},</p>
+          
+          <p>Your password has been reset by an administrator.</p>
+          
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 10px 0;"><strong>New Password:</strong> ${newPassword}</p>
+            <p style="margin: 10px 0;"><strong>Login URL:</strong> <a href="${loginUrl}" style="color: #007bff;">${loginUrl}</a></p>
+          </div>
+          
+          <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <p style="margin: 0;"><strong>⚠️ Security Reminder:</strong> Please login and change your password in your profile for security purposes.</p>
+          </div>
+          
+          <p>If you did not request this password reset, please contact your administrator immediately.</p>
+          
+          <p style="margin-top: 30px;">Best regards,<br>Your Administration Team</p>
+        </div>`
       );
     } catch (emailError) {
       console.error("Email sending failed:", emailError);

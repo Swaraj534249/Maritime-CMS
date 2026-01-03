@@ -14,6 +14,7 @@ import {
   setSearchValue,
   fetchAgenciesAsync,
   toggleAgencyStatusAsync,
+  selectCreateStatus,
 } from "../AgencySlice";
 import {
   Button,
@@ -43,6 +44,7 @@ import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import AgencyForm from "./AgencyForm";
 import { useRowActions } from "../../../hooks/useRowActions";
+import { LoadingButton } from "@mui/lab";
 
 export const AgencyManagement = () => {
   const dispatch = useDispatch();
@@ -50,6 +52,7 @@ export const AgencyManagement = () => {
   const agencies = useSelector(selectAgencies);
   const totalCount = useSelector(selectTotalCount);
   const updateStatus = useSelector(selectUpdateStatus);
+  const createStatus = useSelector(selectCreateStatus);
   const aggregates = useSelector(selectAgenciesAggregates);
   const paginationModel = useSelector(selectPaginationModel);
   const sortModel = useSelector(selectSortModel);
@@ -443,9 +446,15 @@ export const AgencyManagement = () => {
             <Button variant="outlined" onClick={handleCloseModal}>
               Cancel
             </Button>
-            <Button type="submit" form="agency-form" variant="contained">
+            <LoadingButton
+              type="submit"
+              form="agency-form"
+              variant="contained"
+              loading={createStatus === "pending"}
+              disabled={createStatus === "pending"}
+            >
               {editData ? "Update" : "Create"}
-            </Button>
+            </LoadingButton>
           </DialogActions>
         </Dialog>
       </Stack>

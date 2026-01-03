@@ -253,7 +253,7 @@ const base = (state) => state.AgentSlice;
 export const selectAgents = (state) => base(state).list.data;
 export const selectAgentsMeta = (state) => base(state).list.meta;
 export const selectAgentsAggregates = (state) => base(state).list.aggregates;
-export const selectAgentsContext = (state) => base(state).list.context;
+export const selectAgentsContext = (state) => base(state).list.context.agency;
 
 export const selectTotalCount = (state) =>
   base(state).list.meta.pagination.totalRecords;
