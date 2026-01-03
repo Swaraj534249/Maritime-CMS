@@ -282,6 +282,14 @@ export const selectResetPasswordSuccessMessage = (state) =>
 export const selectResetPasswordError = (state) =>
   state.AuthSlice.resetPasswordError;
 
+export const selectUserRole = (state) => state.AuthSlice.loggedInUser?.role;
+export const selectUserAgencyId = (state) => state.AuthSlice.loggedInUser?.agencyId;
+export const selectUserAgency = (state) => state.AuthSlice.loggedInUser?.agency;
+export const selectHasRole = (roles) => (state) => {
+  const userRole = state.AuthSlice.loggedInUser?.role;
+  return roles.includes(userRole);
+};
+
 // exporting reducers
 export const {
   clearAuthSuccessMessage,

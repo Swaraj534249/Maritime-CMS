@@ -9,6 +9,7 @@ import {
 import {
   selectIsAuthChecked,
   selectLoggedInUser,
+  selectUserRole,
 } from "./features/auth/AuthSlice";
 import { Logout } from "./features/auth/components/Logout";
 import { Protected } from "./features/auth/components/Protected";
@@ -23,7 +24,6 @@ import {
   SignupPage,
   UserProfilePage,
 } from "./pages";
-import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 // import { VesselOwnerPage } from './pages/VesselOwnerPage';
 // import { VesselManagerPage } from './pages/VesselManagerPage';
@@ -42,9 +42,19 @@ import { VesselOwnerPage } from "./pages/VesselOwnerPage";
 import { CrewingAgentPage } from "./pages/CrewingAgentPage";
 import { VesselPage } from "./pages/VesselPage";
 
+// import { AgencyDashboardPage } from "./pages/AgencyDashboardPage";
+import { AgentManagementPage } from "./pages/AgentManagementPage";
+// import { SuperAdminDashboardPage } from "./pages/SuperAdminDashboardPage";
+import { AgencyManagementPage } from "./pages/AgentManagementPage copy";
+import {
+  AgencyAdminProtected,
+  SuperAdminProtected,
+} from "./features/auth/components/RoleProtected";
+
 function App() {
   const isAuthChecked = useSelector(selectIsAuthChecked);
   const loggedInUser = useSelector(selectLoggedInUser);
+  const userRole = useSelector(selectUserRole);
 
   useAuthCheck();
   useFetchLoggedInUserDetails(loggedInUser);
@@ -79,39 +89,95 @@ function App() {
             </Protected>
           }
         >
-          {loggedInUser?.isAdmin ? (
-            // admin routes inside RootLayout
+          console.log("userRole: ",userRole);
+          {userRole === "SUPER_ADMIN" && (
             <>
-              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
               <Route
                 path="/"
-                element={<Navigate to="/admin/dashboard" replace />}
+                element={<Navigate to="/super-admin/agencies" replace />}
+              />
+              <Route
+                path="/super-admin/dashboard"
+                element={
+                  <SuperAdminProtected>
+                    {/* <SuperAdminDashboardPage /> */}
+                  </SuperAdminProtected>
+                }
+              />
+              <Route
+                path="/super-admin/agencies"
+                element={
+                  <SuperAdminProtected>
+                    <AgencyManagementPage />
+                  </SuperAdminProtected>
+                }
               />
             </>
-          ) : (
-            // user routes inside RootLayout
+          )}
+          {userRole === "AGENCY_ADMIN" && (
+            <>
+              <Route
+                path="/"
+                element={<Navigate to="/agency/agents" replace />}
+              />
+              <Route
+                path="/agency/dashboard"
+                element={
+                  <AgencyAdminProtected>
+                    {/* <AgencyDashboardPage /> */}
+                  </AgencyAdminProtected>
+                }
+              />
+              <Route
+                path="/agency/agents"
+                element={
+                  <AgencyAdminProtected>
+                    <AgentManagementPage />
+                  </AgencyAdminProtected>
+                }
+              />
+              <Route
+                path="/vessel-owners"
+                element={
+                  <AgencyAdminProtected>
+                    <VesselOwnerPage />
+                  </AgencyAdminProtected>
+                }
+              />
+              <Route
+                path="/vessels/:id"
+                element={
+                  <AgencyAdminProtected>
+                    <VesselPage />
+                  </AgencyAdminProtected>
+                }
+              />
+              <Route
+                path="/crewing-agents"
+                element={
+                  <AgencyAdminProtected>
+                    <CrewingAgentPage />
+                  </AgencyAdminProtected>
+                }
+              />
+            </>
+          )}
+          {userRole === "AGENT" && (
             <>
               <Route path="/" element={<HomePage />} />
               <Route path="/profile" element={<UserProfilePage />} />
-              + <Route path="/vessel-owners" element={<VesselOwnerPage />} />
-              <Route
-                exact
-                path="/vessels/:id"
-                element={
-                  <Protected>
-                    <VesselPage />
-                  </Protected>
-                }
-              />
-              + <Route path="/crewingAgents" element={<CrewingAgentPage />} />
-              <Route path="*" element={<NotFoundPage />} />
+              <Route path="/vessel-owners" element={<VesselOwnerPage />} />
+              <Route path="/vessels/:id" element={<VesselPage />} />
+              <Route path="/crewing-agents" element={<CrewingAgentPage />} />
             </>
           )}
+          <Route path="/profile" element={<UserProfilePage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
 
         {/* fallback */}
-      </>,
-    ),
+      </>
+    )
   );
 
   return isAuthChecked ? <RouterProvider router={routes} /> : "";
