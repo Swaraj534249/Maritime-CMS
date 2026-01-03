@@ -15,8 +15,9 @@ import {
   fetchAgentsAsync,
   toggleAgentStatusAsync,
   resetAgentTableState,
+  selectAgentsContext,
+  selectCreateStatus,
 } from "../AgentSlice";
-import { selectUserAgency } from "../../auth/AuthSlice";
 import {
   Button,
   IconButton,
@@ -47,6 +48,7 @@ import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import AgentForm from "./AgentForm";
 import { useRowActions } from "../../../hooks/useRowActions";
+import { LoadingButton } from "@mui/lab";
 
 export const AgentManagement = () => {
   const dispatch = useDispatch();
@@ -54,8 +56,9 @@ export const AgentManagement = () => {
   const agents = useSelector(selectAgents);
   const totalCount = useSelector(selectTotalCount);
   const updateStatus = useSelector(selectUpdateStatus);
+    const createStatus = useSelector(selectCreateStatus);
   const aggregates = useSelector(selectAgentsAggregates);
-  const agency = useSelector(selectUserAgency);
+  const agency = useSelector(selectAgentsContext);
   const paginationModel = useSelector(selectPaginationModel);
   const sortModel = useSelector(selectSortModel);
   const searchValue = useSelector(selectSearchValue);
@@ -348,10 +351,6 @@ export const AgentManagement = () => {
             <Typography variant="body2" color="text.secondary">
               Agency: <strong>{agency.name}</strong>
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Allowed Domains:{" "}
-              <strong>{agency.allowedDomains?.join(", ") || "N/A"}</strong>
-            </Typography>
           </Paper>
         )}
 
@@ -465,9 +464,15 @@ export const AgentManagement = () => {
             <Button variant="outlined" onClick={handleCloseModal}>
               Cancel
             </Button>
-            <Button type="submit" form="agent-form" variant="contained">
-              {editData ? "Update" : "Create"}
-            </Button>
+            <LoadingButton
+                          type="submit"
+                          form="agent-form"
+                          variant="contained"
+                          loading={createStatus === "pending"}
+                          disabled={createStatus === "pending"}
+                        >
+                          {editData ? "Update" : "Create"}
+                        </LoadingButton>
           </DialogActions>
         </Dialog>
 

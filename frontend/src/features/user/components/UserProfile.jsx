@@ -11,6 +11,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUserInfo } from "../UserSlice";
+import { selectLoggedInUser } from "../../auth/AuthSlice";
 // import { addAddressAsync, resetAddressAddStatus, resetAddressDeleteStatus, resetAddressUpdateStatus, selectAddressAddStatus, selectAddressDeleteStatus, selectAddressErrors, selectAddressStatus, selectAddressUpdateStatus, selectAddresses } from '../../address/AddressSlice'
 // import { Address } from '../../address/components/Address'
 import { useForm } from "react-hook-form";
@@ -27,7 +28,9 @@ export const UserProfile = () => {
     formState: { errors },
   } = useForm();
   // const status=useSelector(selectAddressStatus)
-  const userInfo = useSelector(selectUserInfo);
+  // const userInfo = useSelector(selectUserInfo);
+    const loggedInUser = useSelector(selectLoggedInUser);
+  
   // const addresses=useSelector(selectAddresses)
   const theme = useTheme();
   const [addAddress, setAddAddress] = useState(false);
@@ -116,11 +119,11 @@ export const UserProfile = () => {
         >
           <Avatar
             src="none"
-            alt={userInfo?.name}
+            alt={loggedInUser?.name}
             sx={{ width: 70, height: 70 }}
           ></Avatar>
-          <Typography>{userInfo?.name}</Typography>
-          <Typography>{userInfo?.email}</Typography>
+          <Typography>{loggedInUser?.name}</Typography>
+          <Typography>{loggedInUser?.email}</Typography>
         </Stack>
 
         {/* address section */}

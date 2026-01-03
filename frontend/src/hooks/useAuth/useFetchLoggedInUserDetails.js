@@ -14,7 +14,7 @@ export const useFetchLoggedInUserDetails = (deps) => {
     /* when a user is logged in then this dispatches an action to get all the details of loggedInUser, 
         as while login and signup only the bare-minimum information is sent by the server */
     if (deps && loggedInUser?.isVerified) {
-      dispatch(fetchLoggedInUserByIdAsync(loggedInUser?._id));
+      // dispatch(fetchLoggedInUserByIdAsync(loggedInUser?._id));
       // dispatch(fetchAllBrandsAsync())
       // dispatch(fetchAllCategoriesAsync())
       // dispatch(getAllVesselOwnersAsync())

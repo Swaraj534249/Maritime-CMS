@@ -5,65 +5,66 @@ const mongoose = require("mongoose");
 const { sanitizeUser } = require("../utils/SanitizeUser");
 const { buildListQuery } = require("../utils/ListQueryBuilder");
 const { buildListResponse } = require("../utils/ListResponseBuilder");
+const { sendMail } = require("../utils/Emails");
 
 exports.create = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const { agency, admin } = req.body;
+    const { 
+      name, 
+      email, 
+      contactPerson, 
+      phone, 
+      address, 
+      licenseNumber, 
+      subscriptionPlan, 
+      maxAgents, 
+      password, 
+      userType 
+    } = req.body;
 
-    if (!agency || !admin) {
-      await session.abortTransaction();
-      session.endSession();
+    if (!name || !email || !contactPerson || !phone || !password) {
       return res.status(400).json({
-        message: "Agency and admin details are required",
+        message: "Name, email, contact person, phone, and password are required",
       });
     }
 
-    const existingAgency = await Agency.findOne({ email: agency.email });
+    const existingAgency = await Agency.findOne({ email });
     if (existingAgency) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({
         message: "Agency with this email already exists",
       });
     }
 
-    const existingAdmin = await User.findOne({ email: admin.email });
-    if (existingAdmin) {
-      await session.abortTransaction();
-      session.endSession();
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({
         message: "User with this email already exists",
       });
     }
 
-    const agencyEmailDomain = agency.email.split("@")[1].toLowerCase();
-    const adminEmailDomain = admin.email.split("@")[1].toLowerCase();
-    const allowedDomains = agency.allowedDomains.map((d) => d.toLowerCase());
-
-    if (!allowedDomains.includes(adminEmailDomain) && !allowedDomains.includes(agencyEmailDomain)) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        message: `Admin email domain must be one of: ${agency.allowedDomains.join(", ")}`,
-      });
-    }
-
-    const newAgency = new Agency(agency);
-    await newAgency.save({ session });
+    // Create agency
+    const newAgency = new Agency({
+      name,
+      email,
+      contactPerson,
+      phone,
+      address,
+      licenseNumber,
+      subscriptionPlan: subscriptionPlan || "basic",
+      maxAgents: maxAgents || 5,
+    });
+    await newAgency.save();
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(admin.password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const adminUserData = {
-      name: admin.name,
-      email: admin.email,
+      name: contactPerson,
+      email,
       password: hashedPassword,
       role: "AGENCY_ADMIN",
       agencyId: newAgency._id,
-      userType: admin.userType || null,
+      userType: userType || null,
       isVerified: false,
     };
 
@@ -72,20 +73,76 @@ exports.create = async (req, res) => {
     }
 
     const adminUser = new User(adminUserData);
-    await adminUser.save({ session });
+    await adminUser.save();
 
-    await session.commitTransaction();
-    session.endSession();
+    try {
+      const loginUrl = `${process.env.ORIGIN}/login`;
+      
+      await sendMail(
+        email,
+        "Welcome - Your Agency Admin Account Details",
+        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Welcome to Our Platform!</h2>
+          
+          <p>Hello ${contactPerson},</p>
+          
+          <p>Your agency <strong>${name}</strong> has been successfully registered, and your admin account has been created.</p>
+          
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">Agency Details:</h3>
+            <p style="margin: 10px 0;"><strong>Agency Name:</strong> ${name}</p>
+            <p style="margin: 10px 0;"><strong>Subscription Plan:</strong> ${subscriptionPlan || "basic"}</p>
+            <p style="margin: 10px 0;"><strong>Max Agents Allowed:</strong> ${maxAgents || 5}</p>
+          </div>
+          
+          <div style="background-color: #e3f2fd; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">Your Admin Login Credentials:</h3>
+            <p style="margin: 10px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 10px 0;"><strong>Password:</strong> ${password}</p>
+            <p style="margin: 10px 0;"><strong>Login URL:</strong> <a href="${loginUrl}" style="color: #007bff;">${loginUrl}</a></p>
+          </div>
+          
+          <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <p style="margin: 0;"><strong>⚠️ Next Steps:</strong></p>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+              <li>Click the login link above or copy it to your browser</li>
+              <li>Login using your email and password</li>
+              <li>You'll be asked to verify your email with an OTP</li>
+              <li>After verification, you can create and manage agents</li>
+              <li>You can change your password anytime in your profile</li>
+            </ol>
+          </div>
+          
+          <div style="background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+            <p style="margin: 0;"><strong>✨ What You Can Do:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li>Create and manage up to ${maxAgents || 5} agents</li>
+              <li>Monitor your agents' activities</li>
+              <li>Manage agency settings and preferences</li>
+            </ul>
+          </div>
+          
+          <p>If you have any questions or need assistance, please contact our support team.</p>
+          
+          <p style="margin-top: 30px;">Best regards,<br><strong>Platform Administration Team</strong></p>
+          
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+          <p style="color: #888; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
+        </div>`
+      );
+      console.log("Agency admin welcome email sent successfully to:", email);
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       agency: newAgency,
       admin: sanitizeUser(adminUser),
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Create agency error:", error);
-        res.status(500).json({
+    res.status(500).json({
       message: error.message || "Error occurred while creating agency",
       error: process.env.NODE_ENV === "development" ? error.toString() : undefined,
     });
@@ -262,59 +319,80 @@ exports.getById = async (req, res) => {
 };
 
 exports.updateById = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { id } = req.params;
-    const { agency, admin } = req.body;
+    const updates = req.body;
+
+    delete updates._id;
+    delete updates.email;
+
+    const passwordUpdate = updates.password;
+    delete updates.password;
 
     const updatedAgency = await Agency.findByIdAndUpdate(
       id,
-      { $set: agency },
-      { new: true, runValidators: true, session }
+      { $set: updates },
+      { new: true, runValidators: true }
     );
 
     if (!updatedAgency) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(404).json({ message: "Agency not found" });
     }
 
-    // Update admin if provided
-    let updatedAdmin = null;
-    if (admin && admin._id) {
-      const adminUpdates = { ...admin };
-      delete adminUpdates._id;
-      delete adminUpdates.email;
-      delete adminUpdates.role;
-      delete adminUpdates.agencyId;
-
-      if (adminUpdates.password) {
-        adminUpdates.password = await bcrypt.hash(adminUpdates.password, 10);
-      } else {
-        delete adminUpdates.password;
-      }
-
-      updatedAdmin = await User.findByIdAndUpdate(
-        admin._id,
-        { $set: adminUpdates },
-        { new: true, session }
+    if (passwordUpdate) {
+      const hashedPassword = await bcrypt.hash(passwordUpdate, 10);
+      const admin = await User.findOneAndUpdate(
+        { agencyId: id, role: "AGENCY_ADMIN" },
+        { password: hashedPassword },
+        { new: true }
       ).select("-password");
+
+      if (admin) {
+        try {
+          const loginUrl = `${process.env.ORIGIN}/login`;
+          
+          await sendMail(
+            admin.email,
+            "Password Updated - Agency Admin Account",
+            `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">Password Updated</h2>
+              
+              <p>Hello ${admin.name},</p>
+              
+              <p>Your agency admin password has been updated by a super administrator.</p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                <p style="margin: 10px 0;"><strong>New Password:</strong> ${passwordUpdate}</p>
+                <p style="margin: 10px 0;"><strong>Login URL:</strong> <a href="${loginUrl}" style="color: #007bff;">${loginUrl}</a></p>
+              </div>
+              
+              <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                <p style="margin: 0;"><strong>⚠️ Security Reminder:</strong> Please login and change your password in your profile for security purposes.</p>
+              </div>
+              
+              <p>If you did not request this password reset, please contact support immediately.</p>
+              
+              <p style="margin-top: 30px;">Best regards,<br>Platform Administration Team</p>
+            </div>`
+          );
+          console.log("Password update email sent successfully to:", admin.email);
+        } catch (emailError) {
+          console.error("Email sending failed:", emailError);
+        }
+      }
     }
 
-    // Commit the transaction
-    await session.commitTransaction();
-    session.endSession();
+    // Get updated admin details
+    const admin = await User.findOne({
+      agencyId: updatedAgency._id,
+      role: "AGENCY_ADMIN",
+    }).select("-password");
 
     res.status(200).json({
       agency: updatedAgency,
-      admin: updatedAdmin,
+      admin,
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-
     console.error("Update agency error:", error);
     res.status(500).json({
       message: error.message || "Error updating agency, please try again later",

@@ -26,7 +26,7 @@ import { Sidebar } from "./Sidebar";
 
 export const Navbar = ({ isProductList = false }) => {
   const [anchorElUser, setAnchorElUser] = React.useState(null);
-  const userInfo = useSelector(selectUserInfo);
+  // const userInfo = useSelector(selectUserInfo);
   const loggedInUser = useSelector(selectLoggedInUser);
   const theme = useTheme();
   const is480 = useMediaQuery(theme.breakpoints.down(480));
@@ -53,8 +53,8 @@ export const Navbar = ({ isProductList = false }) => {
     { name: "Logout", to: "/logout", icon: <WorkIcon fontSize="small" /> },
   ];
 
-  const avatarLabel = userInfo?.name
-    ? userInfo.name
+  const avatarLabel = loggedInUser?.name
+    ? loggedInUser.name
         .split(" ")
         .map((n) => n[0])
         .slice(0, 2)
@@ -105,7 +105,7 @@ export const Navbar = ({ isProductList = false }) => {
           )}
           <Tooltip title="Open Settings">
             <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-              <Avatar alt={userInfo?.name} sx={{ bgcolor: "#1976d2" }}>
+              <Avatar alt={loggedInUser?.name} sx={{ bgcolor: "#1976d2" }}>
                 {avatarLabel}
               </Avatar>
             </IconButton>
