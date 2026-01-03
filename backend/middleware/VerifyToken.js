@@ -20,6 +20,9 @@ exports.verifyToken = async (req, res, next) => {
     // checks if decoded info contains legit details, then set that info in req.user and calls next
     if (decodedInfo && decodedInfo._id && decodedInfo.email) {
       req.user = decodedInfo;
+      if (decodedInfo.agencyId) {
+        req.user.agencyId = decodedInfo.agencyId;
+      }
       next();
     }
 

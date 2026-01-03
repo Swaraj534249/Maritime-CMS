@@ -6,6 +6,8 @@ const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth.route");
 const userRoutes = require("./routes/user.route");
+const agencyRoutes = require("./routes/agency.route");
+const agentRoutes = require("./routes/agent.route");
 
 const vesselOwnerRoutes = require("./routes/vesselOwner.route");
 const vesselRoutes = require("./routes/vessel.route");
@@ -38,6 +40,9 @@ server.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // routeMiddleware
 server.use("/auth", authRoutes);
 server.use("/users", userRoutes);
+server.use("/agencies", agencyRoutes);
+server.use("/agents", agentRoutes);
+
 server.use("/vesselOwners", vesselOwnerRoutes);
 server.use("/vessels", vesselRoutes);
 server.use("/crewingAgents", crewingAgentRoutes);

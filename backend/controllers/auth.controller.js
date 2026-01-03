@@ -3,90 +3,127 @@ const bcrypt = require("bcryptjs");
 const { sendMail } = require("../utils/Emails");
 const { generateOTP } = require("../utils/GenerateOtp");
 const Otp = require("../models/OTP");
-const { sanitizeUser } = require("../utils/SanitizeUser");
+const { sanitizeUser, sanitizeUserForToken } = require("../utils/SanitizeUser");
 const { generateToken } = require("../utils/GenerateToken");
 const PasswordResetToken = require("../models/PasswordResetToken");
 
+// exports.signup = async (req, res) => {
+//   try {
+//     const existingUser = await User.findOne({ email: req.body.email });
+
+//     // if user already exists
+//     if (existingUser) {
+//       return res.status(400).json({ message: "User already exists" });
+//     }
+
+//     // hashing the password
+//     const hashedPassword = await bcrypt.hash(req.body.password, 10);
+//     req.body.password = hashedPassword;
+
+//     // creating new user
+//     const createdUser = new User(req.body);
+//     await createdUser.save();
+
+//     // getting secure user info
+//     const secureInfo = sanitizeUser(createdUser);
+
+//     // generating jwt token
+//     const token = generateToken(secureInfo);
+
+//     // sending jwt token in the response cookies
+//     res.cookie("token", token, {
+//       sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
+//       maxAge: new Date(
+//         Date.now() +
+//           parseInt(process.env.COOKIE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000),
+//       ),
+//       httpOnly: true,
+//       secure: process.env.PRODUCTION === "true" ? true : false,
+//     });
+
+//     res.status(201).json(sanitizeUser(createdUser));
+//   } catch (error) {
+//     console.log(error);
+//     res
+//       .status(500)
+//       .json({ message: "Error occured during signup, please try again later" });
+//   }
+// };
+
 exports.signup = async (req, res) => {
   try {
-    const existingUser = await User.findOne({ email: req.body.email });
-
-    // if user already exists
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    // hashing the password
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    req.body.password = hashedPassword;
-
-    // creating new user
-    const createdUser = new User(req.body);
-    await createdUser.save();
-
-    // getting secure user info
-    const secureInfo = sanitizeUser(createdUser);
-
-    // generating jwt token
-    const token = generateToken(secureInfo);
-
-    // sending jwt token in the response cookies
-    res.cookie("token", token, {
-      sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
-      maxAge: new Date(
-        Date.now() +
-          parseInt(process.env.COOKIE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000),
-      ),
-      httpOnly: true,
-      secure: process.env.PRODUCTION === "true" ? true : false,
+    return res.status(403).json({
+      message: "Public signup is disabled. Please contact administrator for agency registration",
     });
-
-    res.status(201).json(sanitizeUser(createdUser));
   } catch (error) {
     console.log(error);
-    res
-      .status(500)
-      .json({ message: "Error occured during signup, please try again later" });
+    res.status(500).json({
+      message: "Error occurred during signup, please try again later",
+    });
   }
 };
 
 exports.login = async (req, res) => {
   try {
-    // checking if user exists or not
     const existingUser = await User.findOne({ email: req.body.email });
-    // if exists and password matches the hash
     if (
       existingUser &&
       (await bcrypt.compare(req.body.password, existingUser.password))
     ) {
-      // getting secure user info
-      const secureInfo = sanitizeUser(existingUser);
+      if (!existingUser.isActive) {
+        return res.status(403).json({
+          message: "Your account has been deactivated. Please contact your agency admin",
+        });
+      }
 
+      if (existingUser.role !== "SUPER_ADMIN" && existingUser.agencyId) {
+        const Agency = require("../models/Agency");
+        const agency = await Agency.findById(existingUser.agencyId);
+        
+        if (!agency) {
+          return res.status(404).json({ message: "Agency not found" });
+        }
+
+        if (!agency.isActive) {
+          return res.status(403).json({
+            message: "Your agency account is inactive. Please contact support",
+          });
+        }
+
+        if (agency.subscriptionExpiresAt && agency.subscriptionExpiresAt < new Date()) {
+          return res.status(403).json({
+            message: "Your agency subscription has expired. Please contact support",
+          });
+        }
+      }
+
+      await User.findByIdAndUpdate(existingUser._id, {
+        lastLoginAt: new Date(),
+      });
+
+      const secureInfo = sanitizeUserForToken(existingUser);
       // generating jwt token
       const token = generateToken(secureInfo);
 
       // sending jwt token in the response cookies
       res.cookie("token", token, {
         sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
-        maxAge: new Date(
-          Date.now() +
-            parseInt(process.env.COOKIE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000),
+        maxAge: parseInt(
+          process.env.COOKIE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000
         ),
         httpOnly: true,
-        secure: process.env.PRODUCTION === "true" ? true : false,
+        secure: process.env.PRODUCTION === "true",
       });
       return res.status(200).json(sanitizeUser(existingUser));
     }
 
     res.clearCookie("token");
-    return res.status(404).json({ message: "Invalid Credentails" });
+    return res.status(404).json({ message: "Invalid Credentials" });
   } catch (error) {
     console.log(error);
-    res
-      .status(500)
-      .json({
-        message: "Some error occured while logging in, please try again later",
-      });
+    res.status(500).json({
+      message: "Some error occurred while logging in, please try again later",
+    });
   }
 };
 
@@ -310,8 +347,18 @@ exports.logout = async (req, res) => {
 exports.checkAuth = async (req, res) => {
   try {
     if (req.user) {
-      const user = await User.findById(req.user._id);
-      return res.status(200).json(sanitizeUser(user));
+      const user = await User.findById(req.user._id)
+        .populate("agencyId", "name email allowedDomains isActive")
+        .select("-password");
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.status(200).json({
+        ...sanitizeUser(user),
+        agency: user.agencyId,
+      });
     }
     res.sendStatus(401);
   } catch (error) {

@@ -190,13 +190,14 @@ export const Login = () => {
               <motion.div>
                 <Typography
                   sx={{ textDecoration: "none", color: "text.primary" }}
-                  to={"/signup"}
-                  component={Link}
+                  // to={"/signup"}
+                  // component={Link}
                 >
-                  Don't have an account?{" "}
-                  <span style={{ color: theme.palette.primary.dark }}>
+                  Don't have an account? <br/>
+                  Contact your agency admin{" "}
+                  {/* <span style={{ color: theme.palette.primary.dark }}>
                     Register
-                  </span>
+                  </span> */}
                 </Typography>
               </motion.div>
             </MotionConfig>

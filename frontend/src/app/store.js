@@ -1,5 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import AuthSlice from "../features/auth/AuthSlice";
+import AgentSlice from "../features/agent/AgentSlice";
+import AgencySlice from "../features/agency/AgencySlice";
 import UserSlice from "../features/user/UserSlice";
 import VesselOwnerSlice from "../features/vesselOwner/VesselOwnerSlice";
 // import VesselManagerSlice from '../features/vesselManager/VesselManagerSlice'
@@ -12,6 +14,8 @@ import CrewingAgentSlice from "../features/crewingAgent/CrewingAgentSlice";
 export const store = configureStore({
   reducer: {
     AuthSlice,
+    AgentSlice,
+    AgencySlice,
     UserSlice,
     VesselOwnerSlice,
     // VesselManagerSlice,
