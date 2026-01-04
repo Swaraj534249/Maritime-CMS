@@ -17,15 +17,16 @@ exports.verifyToken = async (req, res, next) => {
     // verifies the token
     const decodedInfo = jwt.verify(token, process.env.SECRET_KEY);
 
-    // checks if decoded info contains legit details, then set that info in req.user and calls next
     if (decodedInfo && decodedInfo._id && decodedInfo.email) {
-      req.user = decodedInfo;
-      if (decodedInfo.agencyId) {
-        req.user.agencyId = decodedInfo.agencyId;
-      }
+      req.user = {
+        _id: decodedInfo._id,
+        email: decodedInfo.email,
+        role: decodedInfo.role,
+        agencyId: decodedInfo.agencyId || null,
+      };
+
       next();
     }
-
     // if token is invalid then sends the response accordingly
     else {
       return res

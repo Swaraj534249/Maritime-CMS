@@ -25,27 +25,13 @@ import {
   UserProfilePage,
 } from "./pages";
 import { NotFoundPage } from "./pages/NotFoundPage";
-// import { VesselOwnerPage } from './pages/VesselOwnerPage';
-// import { VesselManagerPage } from './pages/VesselManagerPage';
-// import { VesselPage } from './pages/VesselPage';
-// import { RankPage } from './pages/RankPage';
-// import { CrewPage } from './pages/CrewPage';
-// import { CrewingAgentPage } from './pages/CrewingAgentPage';
-// import { ProposePage } from './pages/ProposePage';
-// import { AddProposePage } from './pages/AddProposePage';
-// import { EditProposalPage } from './pages/EditProposalPage';
-// import { Form1PDF } from './pages/Form1PDF';
 import { Child } from "./pages/Child";
-import { Box } from "react-router-dom";
 import { RootLayout } from "./layout/RootLayout";
 import { VesselOwnerPage } from "./pages/VesselOwnerPage";
 import { CrewingAgentPage } from "./pages/CrewingAgentPage";
 import { VesselPage } from "./pages/VesselPage";
-
-// import { AgencyDashboardPage } from "./pages/AgencyDashboardPage";
 import { AgentManagementPage } from "./pages/AgentManagementPage";
-// import { SuperAdminDashboardPage } from "./pages/SuperAdminDashboardPage";
-import { AgencyManagementPage } from "./pages/AgentManagementPage copy";
+import { AgencyManagementPage } from "./pages/AgencyManagementPage";
 import {
   AgencyAdminProtected,
   SuperAdminProtected,
@@ -89,7 +75,6 @@ function App() {
             </Protected>
           }
         >
-          console.log("userRole: ",userRole);
           {userRole === "SUPER_ADMIN" && (
             <>
               <Route
@@ -112,8 +97,18 @@ function App() {
                   </SuperAdminProtected>
                 }
               />
+              {/* New route: Super admin viewing agents of a specific agency */}
+              <Route
+                path="/super-admin/agencies/:agencyId/agents"
+                element={
+                  <SuperAdminProtected>
+                    <AgentManagementPage viewMode="super-admin" />
+                  </SuperAdminProtected>
+                }
+              />
             </>
           )}
+          
           {userRole === "AGENCY_ADMIN" && (
             <>
               <Route
@@ -162,6 +157,7 @@ function App() {
               />
             </>
           )}
+
           {userRole === "AGENT" && (
             <>
               <Route path="/" element={<HomePage />} />
@@ -171,11 +167,10 @@ function App() {
               <Route path="/crewing-agents" element={<CrewingAgentPage />} />
             </>
           )}
+          
           <Route path="/profile" element={<UserProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
-
-        {/* fallback */}
       </>
     )
   );

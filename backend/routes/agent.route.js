@@ -6,8 +6,13 @@ const { authorize, checkAgencyStatus } = require("../middleware/authorization");
 
 // All routes require authentication and AGENCY_ADMIN role
 router.use(verifyToken);
-router.use(authorize("AGENCY_ADMIN"));
-router.use(checkAgencyStatus); // Ensure agency is active
+router.use(authorize("AGENCY_ADMIN", "SUPER_ADMIN"));
+router.use((req, res, next) => {
+  if (req.user.role === "SUPER_ADMIN") {
+    return next();
+  }
+  return checkAgencyStatus(req, res, next);
+});
 
 // Create agent
 router.post("/", controller.create);

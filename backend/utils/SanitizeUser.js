@@ -1,37 +1,68 @@
+/**
+ * Sanitize user object for client response
+ * Removes sensitive fields like password
+ */
 exports.sanitizeUser = (user) => {
+  // Handle both mongoose documents and plain objects
+  const userData = user.toObject ? user.toObject() : user;
+
   const sanitized = {
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    userType: user.userType,
-    isVerified: user.isVerified,
-    isActive: user.isActive,
+    _id: userData._id,
+    name: userData.name,
+    email: userData.email,
+    role: userData.role,
+    userType: userData.userType,
+    isVerified: userData.isVerified,
+    isActive: userData.isActive,
   };
 
-  if (user.agencyId) {
-    sanitized.agencyId = user.agencyId;
+  // Add optional fields if they exist
+  if (userData.agencyId) {
+    sanitized.agencyId = userData.agencyId;
   }
 
-  if (user.avatar) {
-    sanitized.avatar = user.avatar;
+  if (userData.agency) {
+    sanitized.agency = userData.agency;
   }
 
-  if (user.lastLoginAt) {
-    sanitized.lastLoginAt = user.lastLoginAt;
+  if (userData.avatar) {
+    sanitized.avatar = userData.avatar;
+  }
+
+  if (userData.lastLoginAt) {
+    sanitized.lastLoginAt = userData.lastLoginAt;
+  }
+
+  if (userData.createdAt) {
+    sanitized.createdAt = userData.createdAt;
+  }
+
+  if (userData.updatedAt) {
+    sanitized.updatedAt = userData.updatedAt;
   }
 
   return sanitized;
 };
 
+/**
+ * Sanitize user object for JWT token
+ * Only includes essential fields needed for authentication
+ * CRITICAL: Must include role and agencyId for authorization
+ */
 exports.sanitizeUserForToken = (user) => {
+  // Handle both mongoose documents and plain objects
+  const userData = user.toObject ? user.toObject() : user;
+
   const tokenPayload = {
-    _id: user._id,
-    email: user.email,
-    role: user.role,
+    _id: userData._id,
+    email: userData.email,
+    role: userData.role, // CRITICAL: Always include role
   };
-  if (user.agencyId) {
-    tokenPayload.agencyId = user.agencyId;
+
+  // CRITICAL: Include agencyId for agency-based authorization
+  // Super admins won't have agencyId, so it's optional
+  if (userData.agencyId) {
+    tokenPayload.agencyId = userData.agencyId;
   }
 
   return tokenPayload;
