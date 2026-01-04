@@ -130,7 +130,7 @@ exports.create = async (req, res) => {
           <p style="color: #888; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
         </div>`
       );
-      console.log("Agency admin welcome email sent successfully to:", email);
+      // console.log("Agency admin welcome email sent successfully to:", email);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
       // Don't fail the request if email fails
@@ -163,13 +163,10 @@ exports.list = async (req, res) => {
 
     const pageNumber = Number(page || 1);
     const pageSizeNumber = Number(limit || 10);
-
-    console.log("list agency");
     
     // Base filter
     const extraFilter = {};
 
-    // Add isActive filter if provided
     if (isActive === "true") {
       extraFilter.isActive = true;
     } else if (isActive === "false") {
@@ -187,13 +184,11 @@ exports.list = async (req, res) => {
       extraFilter,
     });
 
-    // If 'all' is requested, return all records without pagination
     if (all === "true") {
       const data = await Agency.find(queryFilter).sort(sort).lean();
       return res.json(data);
     }
 
-    // Fetch paginated data and total count
     const [data, totalRecords] = await Promise.all([
       Agency.find(queryFilter)
         .skip(skip)
@@ -203,10 +198,8 @@ exports.list = async (req, res) => {
       Agency.countDocuments(queryFilter),
     ]);
 
-    // For each agency, get the admin count and admin details
     const agencyIds = data.map((a) => a._id);
 
-    // Get admin details for each agency
     const admins = await User.find({
       agencyId: { $in: agencyIds },
       role: "AGENCY_ADMIN",
@@ -215,19 +208,17 @@ exports.list = async (req, res) => {
       .populate("createdBy", "name email")
       .lean();
 
-    // Get agent counts for each agency
     const agentCounts = await User.aggregate([
       {
         $match: {
           agencyId: { $in: agencyIds },
-          role: "AGENT",
+          role: { $in: ["AGENT", "AGENCY_ADMIN"] },
           isActive: true,
         },
       },
       { $group: { _id: "$agencyId", count: { $sum: 1 } } },
     ]);
 
-    // Create lookup maps
     const agentCountByAgency = {};
     agentCounts.forEach((ac) => {
       if (ac._id) {
@@ -242,14 +233,12 @@ exports.list = async (req, res) => {
       }
     });
 
-    // Enhance data with counts and admin info
     const enhancedData = data.map((agency) => ({
       ...agency,
       agentCount: agentCountByAgency[agency._id.toString()] || 0,
       admin: adminByAgency[agency._id.toString()] || null,
     }));
 
-    // Calculate aggregates
     const [activeCount, inactiveCount] = await Promise.all([
       Agency.countDocuments({ ...extraFilter, isActive: true }),
       Agency.countDocuments({ ...extraFilter, isActive: false }),
@@ -290,7 +279,6 @@ exports.getById = async (req, res) => {
       return res.status(404).json({ message: "Agency not found" });
     }
 
-    // Get admin details
     const admin = await User.findOne({
       agencyId: agency._id,
       role: "AGENCY_ADMIN",
@@ -375,7 +363,7 @@ exports.updateById = async (req, res) => {
               <p style="margin-top: 30px;">Best regards,<br>Platform Administration Team</p>
             </div>`
           );
-          console.log("Password update email sent successfully to:", admin.email);
+          // console.log("Password update email sent successfully to:", admin.email);
         } catch (emailError) {
           console.error("Email sending failed:", emailError);
         }

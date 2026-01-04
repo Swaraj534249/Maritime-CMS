@@ -8,10 +8,34 @@ const { buildListResponse } = require("../utils/ListResponseBuilder");
 
 exports.create = async (req, res) => {
   try {
-    const { name, email, password, userType } = req.body;
-    const agencyId = req.user.agencyId;
+    const { name, email, password, userType, agencyId: bodyAgencyId } = req.body;
+    const userRole = req.user.role;
+    
+    // Determine target agency
+    let targetAgencyId;
+    if (userRole === "SUPER_ADMIN") {
+      // Super admin can specify agency in request body
+      targetAgencyId = bodyAgencyId;
+      if (!targetAgencyId) {
+        return res.status(400).json({ 
+          message: "Agency ID is required for super admin" 
+        });
+      }
+    } else if (userRole === "AGENCY_ADMIN") {
+      // Agency admin can only create agents in their own agency
+      targetAgencyId = req.user.agencyId;
+      if (!targetAgencyId) {
+        return res.status(400).json({ 
+          message: "Agency ID not found for user" 
+        });
+      }
+    } else {
+      return res.status(403).json({ 
+        message: "Insufficient permissions to create agents" 
+      });
+    }
 
-    const agency = await Agency.findById(agencyId);
+    const agency = await Agency.findById(targetAgencyId);
 
     if (!agency) {
       return res.status(404).json({ message: "Agency not found" });
@@ -107,9 +131,6 @@ exports.create = async (req, res) => {
   }
 };
 
-/**
- * List agents with pagination, search, and filtering
- */
 exports.list = async (req, res) => {
   try {
     const {
@@ -120,38 +141,65 @@ exports.list = async (req, res) => {
       sortOrder,
       all,
       isActive,
+      agencyId: queryAgencyId,
     } = req.query;
 
     const pageNumber = Number(page || 1);
     const pageSizeNumber = Number(limit || 10);
-    const agencyId = req.user.agencyId;
-    if (!agencyId) {
-      return res.status(400).json({ message: "Agency ID not found for user" });
-    }
+    const userRole = req.user.role;
+    const userAgencyId = req.user.agencyId;
 
-    let agencyContext = null;
-    const agency = await Agency.findById(agencyId, "name maxAgents isActive").lean();
+    // Determine which agency to filter by
+    let targetAgencyId;
     
-    if (agency) {
-      agencyContext = {
-        _id: agency._id,
-        name: agency.name,
-        maxAgents: agency.maxAgents,
-        isActive: agency.isActive,
-      };
+    console.log("agencyId: ",queryAgencyId, userAgencyId);
+    
+    if (userRole === "SUPER_ADMIN") {
+      targetAgencyId = queryAgencyId || null;
+    } else if (userRole === "AGENCY_ADMIN") {
+      targetAgencyId = userAgencyId;
+      
+      if (!targetAgencyId) {
+        return res.status(400).json({ 
+          message: "Agency ID not found for user" 
+        });
+      }
+    } else {
+      return res.status(403).json({ 
+        message: "Insufficient permissions" 
+      });
     }
 
-    // Base filter for agents of this agency only
+    // Build base filter
     const extraFilter = {
-      agencyId,
       role: { $in: ["AGENT", "AGENCY_ADMIN"] },
     };
+
+    if (targetAgencyId) {
+      extraFilter.agencyId = targetAgencyId;
+    }
 
     // Add isActive filter if provided
     if (isActive === "true") {
       extraFilter.isActive = true;
     } else if (isActive === "false") {
       extraFilter.isActive = false;
+    }
+
+    let agencyContext = null;
+    if (targetAgencyId) {
+      const agency = await Agency.findById(targetAgencyId, 
+        "name maxAgents isActive"
+      ).lean();
+      
+      if (agency) {
+        agencyContext = {
+          _id: agency._id,
+          name: agency.name,
+          maxAgents: agency.maxAgents,
+          isActive: agency.isActive,
+        };
+      }
     }
 
     const { queryFilter, skip, sort } = buildListQuery({
@@ -165,21 +213,21 @@ exports.list = async (req, res) => {
       extraFilter,
     });
 
-    // If 'all' is requested, return all records without pagination
     if (all === "true") {
       const data = await User.find(queryFilter)
         .select("-password")
         .populate("createdBy", "name email")
+        .populate("agencyId", "name email")
         .sort(sort)
         .lean();
       return res.json(data);
     }
 
-    // Fetch paginated data and total count
     const [data, totalRecords] = await Promise.all([
       User.find(queryFilter)
         .select("-password")
         .populate("createdBy", "name email")
+        .populate("agencyId", "name email")
         .skip(skip)
         .limit(pageSizeNumber)
         .sort(sort)
@@ -193,6 +241,40 @@ exports.list = async (req, res) => {
       User.countDocuments({ ...extraFilter, isActive: false }),
       User.countDocuments({ ...extraFilter, isVerified: true }),
     ]);
+
+    // For super admin without specific agency, group by agency
+    let agencyGroups = null;
+    if (userRole === "SUPER_ADMIN" && !targetAgencyId) {
+      const agencyCounts = await User.aggregate([
+        { $match: extraFilter },
+        { 
+          $group: { 
+            _id: "$agencyId", 
+            count: { $sum: 1 } 
+          } 
+        },
+        {
+          $lookup: {
+            from: "agencies",
+            localField: "_id",
+            foreignField: "_id",
+            as: "agency"
+          }
+        },
+        { $unwind: "$agency" },
+        {
+          $project: {
+            agencyId: "$_id",
+            agencyName: "$agency.name",
+            agentCount: "$count",
+            maxAgents: "$agency.maxAgents",
+            isActive: "$agency.isActive"
+          }
+        }
+      ]);
+      
+      agencyGroups = agencyCounts;
+    }
 
     res.json(
       buildListResponse({
@@ -210,9 +292,11 @@ exports.list = async (req, res) => {
             inactive: inactiveCount,
             verified: verifiedCount,
           },
+          agencyGroups,
         },
         context: {
-          agency: agencyContext || null,
+          agency: agencyContext,
+          viewMode: userRole === "SUPER_ADMIN" ? "super-admin" : "agency-admin",
         },
       })
     );
@@ -222,21 +306,26 @@ exports.list = async (req, res) => {
   }
 };
 
-/**
- * Get agent by ID
- */
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const agencyId = req.user.agencyId;
+    const userRole = req.user.role;
+    const userAgencyId = req.user.agencyId;
 
-    const agent = await User.findOne({
+    // Build query based on role
+    const query = {
       _id: id,
-      agencyId,
-      role: "AGENT",
-    })
+      role: { $in: ["AGENT", "AGENCY_ADMIN"] },
+    };
+
+    if (userRole === "AGENCY_ADMIN") {
+      query.agencyId = userAgencyId;
+    }
+
+    const agent = await User.findOne(query)
       .select("-password")
-      .populate("createdBy", "name email");
+      .populate("createdBy", "name email")
+      .populate("agencyId", "name email");
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });
@@ -251,14 +340,12 @@ exports.getById = async (req, res) => {
   }
 };
 
-/**
- * Update agent by ID
- */
 exports.updateById = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const agencyId = req.user.agencyId;
+    const userRole = req.user.role;
+    const userAgencyId = req.user.agencyId;
 
     // Prevent updating critical fields
     delete updates._id;
@@ -268,11 +355,25 @@ exports.updateById = async (req, res) => {
     delete updates.agencyId;
     delete updates.createdBy;
 
+    // Build query based on role
+    const query = {
+      _id: id,
+      role: { $in: ["AGENT", "AGENCY_ADMIN"] },
+    };
+
+    // Agency admin can only update agents from their own agency
+    if (userRole === "AGENCY_ADMIN") {
+      query.agencyId = userAgencyId;
+    }
+    // Super admin can update any agent (no additional filter)
+
     const agent = await User.findOneAndUpdate(
-      { _id: id, agencyId, role: "AGENT" },
+      query,
       { $set: updates },
       { new: true, runValidators: true }
-    ).select("-password");
+    )
+      .select("-password")
+      .populate("agencyId", "name email");
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });
@@ -293,13 +394,22 @@ exports.updateById = async (req, res) => {
 exports.toggleStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const agencyId = req.user.agencyId;
+    const userRole = req.user.role;
+    const userAgencyId = req.user.agencyId;
 
-    const agent = await User.findOne({
+    // Build query based on role
+    const query = {
       _id: id,
-      agencyId,
-      role: "AGENT",
-    });
+      role: { $in: ["AGENT", "AGENCY_ADMIN"] },
+    };
+
+    // Agency admin can only toggle agents from their own agency
+    if (userRole === "AGENCY_ADMIN") {
+      query.agencyId = userAgencyId;
+    }
+    // Super admin can toggle any agent (no additional filter)
+
+    const agent = await User.findOne(query);
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });
@@ -308,7 +418,12 @@ exports.toggleStatus = async (req, res) => {
     agent.isActive = !agent.isActive;
     await agent.save();
 
-    res.json(agent);
+    // Return agent with populated fields
+    const updatedAgent = await User.findById(agent._id)
+      .select("-password")
+      .populate("agencyId", "name email");
+
+    res.json(updatedAgent);
   } catch (error) {
     console.error("Toggle agent status error:", error);
     res.status(500).json({ 
@@ -324,7 +439,8 @@ exports.resetPassword = async (req, res) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;
-    const agencyId = req.user.agencyId;
+    const userRole = req.user.role;
+    const userAgencyId = req.user.agencyId;
 
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({
@@ -332,13 +448,27 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
+    // Build query based on role
+    const query = {
+      _id: id,
+      role: { $in: ["AGENT", "AGENCY_ADMIN"] },
+    };
+
+    // Agency admin can only reset password for agents from their own agency
+    if (userRole === "AGENCY_ADMIN") {
+      query.agencyId = userAgencyId;
+    }
+    // Super admin can reset any agent's password (no additional filter)
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     const agent = await User.findOneAndUpdate(
-      { _id: id, agencyId, role: "AGENT" },
+      query,
       { password: hashedPassword },
       { new: true }
-    ).select("-password");
+    )
+      .select("-password")
+      .populate("agencyId", "name email");
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });

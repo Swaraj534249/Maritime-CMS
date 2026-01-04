@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   resetStatuses,
   selectTotalCount,
@@ -39,6 +40,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import BusinessIcon from "@mui/icons-material/Business";
 import PeopleIcon from "@mui/icons-material/People";
+import GroupIcon from "@mui/icons-material/Group";
 import { toast } from "react-toastify";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
@@ -48,6 +50,7 @@ import { LoadingButton } from "@mui/lab";
 
 export const AgencyManagement = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const agencies = useSelector(selectAgencies);
   const totalCount = useSelector(selectTotalCount);
@@ -146,6 +149,11 @@ export const AgencyManagement = () => {
     setEditData(null);
   };
 
+  const handleViewAgents = (agencyId) => {
+    // Navigate to agents page with agency context
+    navigate(`/super-admin/agencies/${agencyId}/agents`);
+  };
+
   const handlePaginationModelChange = (model) => {
     if (model.pageSize !== paginationModel.pageSize) {
       dispatch(setPaginationModel({ page: 0, pageSize: model.pageSize }));
@@ -168,7 +176,6 @@ export const AgencyManagement = () => {
   // Render cell functions
   const renderNameCell = (params) => {
     const { name } = params.row;
-    const initial = name?.charAt(0).toUpperCase() || "A";
 
     return (
       <Tooltip title={name} arrow>
@@ -228,15 +235,36 @@ export const AgencyManagement = () => {
   const renderAgentsCell = (params) => {
     const agentCount = params.row.agentCount || 0;
     const maxAgents = params.row._raw?.maxAgents || 0;
+    const agencyId = params.row.id;
 
     return (
-      <Chip
-        icon={<PeopleIcon />}
-        label={`${agentCount}/${maxAgents}`}
-        size="small"
-        color={agentCount < maxAgents ? "success" : "warning"}
-        variant="outlined"
-      />
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Chip
+          icon={<PeopleIcon />}
+          label={`${agentCount}/${maxAgents}`}
+          size="small"
+          color={agentCount < maxAgents ? "success" : "warning"}
+          variant="outlined"
+        />
+        {agentCount > 0 && (
+          <Tooltip title="View agents" arrow>
+            <IconButton
+              size="small"
+              onClick={() => handleViewAgents(agencyId)}
+              sx={{
+                bgcolor: "primary.light",
+                color: "primary.main",
+                "&:hover": {
+                  bgcolor: "primary.main",
+                  color: "white",
+                },
+              }}
+            >
+              <GroupIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
     );
   };
 
@@ -308,8 +336,8 @@ export const AgencyManagement = () => {
     {
       field: "agents",
       headerName: "Agents",
-      flex: 0.8,
-      minWidth: 100,
+      flex: 1.2,
+      minWidth: 140,
       sortable: false,
       align: "center",
       headerAlign: "center",
