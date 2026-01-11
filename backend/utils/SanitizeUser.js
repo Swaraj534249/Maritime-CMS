@@ -12,11 +12,11 @@ exports.sanitizeUser = (user) => {
     email: userData.email,
     role: userData.role,
     userType: userData.userType,
+    industryType: userData.industryType,
     isVerified: userData.isVerified,
     isActive: userData.isActive,
   };
 
-  // Add optional fields if they exist
   if (userData.agencyId) {
     sanitized.agencyId = userData.agencyId;
   }
@@ -46,8 +46,8 @@ exports.sanitizeUser = (user) => {
 
 /**
  * Sanitize user object for JWT token
- * Only includes essential fields needed for authentication
- * CRITICAL: Must include role and agencyId for authorization
+ * Only includes essential fields needed for authentication and authorization
+ * CRITICAL: Must include role, agencyId, and industryType for proper multi-tenancy
  */
 exports.sanitizeUserForToken = (user) => {
   // Handle both mongoose documents and plain objects
@@ -56,13 +56,17 @@ exports.sanitizeUserForToken = (user) => {
   const tokenPayload = {
     _id: userData._id,
     email: userData.email,
-    role: userData.role, // CRITICAL: Always include role
+    role: userData.role,
   };
 
   // CRITICAL: Include agencyId for agency-based authorization
   // Super admins won't have agencyId, so it's optional
   if (userData.agencyId) {
     tokenPayload.agencyId = userData.agencyId;
+  }
+
+  if (userData.industryType) {
+    tokenPayload.industryType = userData.industryType;
   }
 
   return tokenPayload;

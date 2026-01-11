@@ -75,7 +75,7 @@ export const AgencyManagement = () => {
       contactPerson: "contactPerson",
       id: "_id",
     }),
-    []
+    [],
   );
 
   const fetchPage = (
@@ -84,7 +84,7 @@ export const AgencyManagement = () => {
     sortField,
     sortOrder,
     searchValue,
-    controller
+    controller,
   ) => {
     const params = { page: pageOneBased, limit };
     if (sortField) params.sortField = sortField;
@@ -107,7 +107,7 @@ export const AgencyManagement = () => {
       sortField,
       sortOrder,
       searchValue,
-      controller.signal
+      controller.signal,
     );
 
     return () => {

@@ -45,6 +45,15 @@ const userSchema = new Schema({
     // enum:['Crew','Crewing Agent','Vessel Owner','Vessel Manager'],
     required: false,
   },
+  // NEW: Industry type (inherited from agency)
+  industryType: {
+    type: String,
+    enum: ["maritime", "healthcare", "construction", "hospitality", "other"],
+    required: function () {
+      return this.role === "AGENCY_ADMIN" || this.role === "AGENT";
+    },
+    index: true,
+  },
   isVerified: {
     type: Boolean,
     default: false,
@@ -72,6 +81,8 @@ const userSchema = new Schema({
 
 userSchema.index({ agencyId: 1, role: 1 });
 userSchema.index({ agencyId: 1, isActive: 1 });
+userSchema.index({ agencyId: 1, industryType: 1 });
+userSchema.index({ industryType: 1, role: 1 });
 
 // Method to check if user belongs to an agency
 userSchema.methods.belongsToAgency = function (agencyId) {
@@ -86,6 +97,10 @@ return roles.includes(this.role);
 // Static method to find users by agency
 userSchema.statics.findByAgency = function (agencyId, filter = {}) {
 return this.find({ agencyId, ...filter });
+};
+
+userSchema.statics.findByIndustry = function (industryType, filter = {}) {
+  return this.find({ industryType, ...filter });
 };
 
 module.exports = mongoose.model("User", userSchema);

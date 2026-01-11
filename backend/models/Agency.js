@@ -30,7 +30,14 @@ const agencySchema = new Schema(
     },
     licenseNumber: {
       type: String,
-      sparse: true, // allows multiple null values
+      sparse: true,
+    },
+    industryType: {
+      type: String,
+      enum: ["maritime", "healthcare", "construction", "hospitality", "other"],
+      required: true,
+      default: "maritime",
+      index: true,
     },
     isActive: {
       type: Boolean,
@@ -56,6 +63,8 @@ const agencySchema = new Schema(
 
 // Index for faster queries
 agencySchema.index({ isActive: 1 });
+agencySchema.index({ industryType: 1 });
+agencySchema.index({ isActive: 1, industryType: 1 });
 
 // Virtual for active agents count (you'll populate this in queries)
 agencySchema.virtual("agentsCount", {

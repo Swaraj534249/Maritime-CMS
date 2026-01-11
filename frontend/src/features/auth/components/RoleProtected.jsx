@@ -83,5 +83,7 @@ export const AgencyAdminProtected = ({ children }) => {
  * Super admin only protection
  */
 export const SuperAdminProtected = ({ children }) => {
-  return <RoleProtected allowedRoles={["SUPER_ADMIN"]}>{children}</RoleProtected>;
+  return (
+    <RoleProtected allowedRoles={["SUPER_ADMIN"]}>{children}</RoleProtected>
+  );
 };

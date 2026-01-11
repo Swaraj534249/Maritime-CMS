@@ -1,10 +1,7 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 import * as yup from "yup";
-import {
-  createAgentAsync,
-  updateAgentByIdAsync,
-} from "../AgentSlice";
+import { createAgentAsync, updateAgentByIdAsync } from "../AgentSlice";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import { toast } from "react-toastify";
 
@@ -12,10 +9,7 @@ import { toast } from "react-toastify";
 const agentSchema = yup
   .object({
     name: yup.string().required("Name is required"),
-    email: yup
-      .string()
-      .email("Invalid email")
-      .required("Email is required"),
+    email: yup.string().email("Invalid email").required("Email is required"),
     password: yup.string().when("$isEditMode", {
       is: false,
       then: (schema) =>
@@ -88,7 +82,7 @@ const AgentForm = ({ formId, initialData = null, onClose }) => {
           updateAgentByIdAsync({
             id: initialData._id,
             data,
-          })
+          }),
         ).unwrap();
         toast.success("Agent updated successfully");
       } else {

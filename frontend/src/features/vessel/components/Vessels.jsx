@@ -44,7 +44,11 @@ import { useRowActions } from "../../../hooks/useRowActions";
 import { useDocumentActions } from "../../../hooks/useDocumentActions";
 import { getFileIcon, getFileURL, isPDF } from "../../../utils/fileUtils";
 import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
-import { setPaginationModel, setSearchValue, setSortModel } from "../../vessel/VesselSlice";
+import {
+  setPaginationModel,
+  setSearchValue,
+  setSortModel,
+} from "../../vessel/VesselSlice";
 
 export const Vessels = () => {
   const { id: vesselOwnerId } = useParams();
@@ -119,18 +123,17 @@ export const Vessels = () => {
     };
   }, [paginationModel, sortModel, searchValue, vesselOwnerId]);
 
- useEffect(() => {
-  if (updateStatus === "fulfilled") {
-    toast.success("Vessel status updated successfully");
-    dispatch(resetStatuses());
-  }
+  useEffect(() => {
+    if (updateStatus === "fulfilled") {
+      toast.success("Vessel status updated successfully");
+      dispatch(resetStatuses());
+    }
 
-  if (updateStatus === "rejected") {
-    toast.error("Failed to update vessel status");
-    dispatch(resetStatuses());
-  }
-}, [updateStatus, dispatch]);
-
+    if (updateStatus === "rejected") {
+      toast.error("Failed to update vessel status");
+      dispatch(resetStatuses());
+    }
+  }, [updateStatus, dispatch]);
 
   useEffect(() => {
     dispatch(setSearchValue(""));
@@ -139,7 +142,7 @@ export const Vessels = () => {
       setPaginationModel({
         page: 0,
         pageSize: paginationModel.pageSize, // read from store
-      })
+      }),
     );
   }, [vesselOwnerId]);
 
@@ -329,8 +332,9 @@ export const Vessels = () => {
       minWidth: 160,
       sortable: true,
       valueGetter: (params) =>
-        `${params.row.imo_Number || ""} ${params.row.grt ? " / " + params.row.grt : ""
-          } ${params.row.bhp ? " / " + params.row.bhp : ""}`.trim(),
+        `${params.row.imo_Number || ""} ${
+          params.row.grt ? " / " + params.row.grt : ""
+        } ${params.row.bhp ? " / " + params.row.bhp : ""}`.trim(),
     },
     {
       field: "files",
@@ -413,7 +417,7 @@ export const Vessels = () => {
             Edit
           </MenuItem>
           <MenuItem disabled onClick={handleToggleStatus}>
-            {vessels.find(v => v._id === selectedRowId)?.isDeleted
+            {vessels.find((v) => v._id === selectedRowId)?.isDeleted
               ? "Restore"
               : "Deactivate"}
           </MenuItem>

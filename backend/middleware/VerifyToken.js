@@ -1,6 +1,5 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
-const { sanitizeUser } = require("../utils/SanitizeUser");
 
 exports.verifyToken = async (req, res, next) => {
   try {
@@ -23,6 +22,7 @@ exports.verifyToken = async (req, res, next) => {
         email: decodedInfo.email,
         role: decodedInfo.role,
         agencyId: decodedInfo.agencyId || null,
+        industryType: decodedInfo.industryType || null,
       };
 
       next();

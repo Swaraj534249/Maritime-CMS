@@ -20,7 +20,6 @@ export const useFetchLoggedInUserDetails = (deps) => {
       // dispatch(getAllVesselOwnersAsync())
       // dispatch(getAllRankAsync())
       // dispatch(getAllCrewingAgentsAsync())
-
       // if(!loggedInUser.isAdmin){
       //   dispatch(fetchCartByUserIdAsync(loggedInUser?._id))
       //   dispatch(fetchAddressByUserIdAsync(loggedInUser?._id))

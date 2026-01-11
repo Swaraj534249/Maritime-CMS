@@ -58,9 +58,7 @@ export const updateVesselById = async (data) => {
 
 export const toggleVesselStatus = async (vesselId) => {
   try {
-    const res = await axiosi.patch(
-      `/vessels/${vesselId}/toggle-status`
-    );
+    const res = await axiosi.patch(`/vessels/${vesselId}/toggle-status`);
     return res.data;
   } catch (error) {
     throw error.response?.data || error;
