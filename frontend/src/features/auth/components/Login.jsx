@@ -193,7 +193,7 @@ export const Login = () => {
                   // to={"/signup"}
                   // component={Link}
                 >
-                  Don't have an account? <br/>
+                  Don't have an account? <br />
                   Contact your agency admin{" "}
                   {/* <span style={{ color: theme.palette.primary.dark }}>
                     Register

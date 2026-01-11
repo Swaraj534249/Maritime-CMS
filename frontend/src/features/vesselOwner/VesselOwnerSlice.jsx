@@ -136,7 +136,7 @@ const vesselOwnerSlice = createSlice({
       state.paginationModel = { page: 0, pageSize: 10 };
       state.sortModel = [];
       state.searchValue = "";
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -200,12 +200,10 @@ const vesselOwnerSlice = createSlice({
         const updated = action.payload;
         if (updated.isDeleted) {
           state.list.data = state.list.data.filter(
-            (item) => item._id !== updated._id
+            (item) => item._id !== updated._id,
           );
         } else {
-          const idx = state.list.data.findIndex(
-            (v) => v._id === updated._id
-          );
+          const idx = state.list.data.findIndex((v) => v._id === updated._id);
           if (idx !== -1) {
             state.list.data[idx] = updated;
           }

@@ -29,8 +29,8 @@ export const UserProfile = () => {
   } = useForm();
   // const status=useSelector(selectAddressStatus)
   // const userInfo = useSelector(selectUserInfo);
-    const loggedInUser = useSelector(selectLoggedInUser);
-  
+  const loggedInUser = useSelector(selectLoggedInUser);
+
   // const addresses=useSelector(selectAddresses)
   const theme = useTheme();
   const [addAddress, setAddAddress] = useState(false);

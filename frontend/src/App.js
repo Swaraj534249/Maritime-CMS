@@ -108,7 +108,7 @@ function App() {
               />
             </>
           )}
-          
+
           {userRole === "AGENCY_ADMIN" && (
             <>
               <Route
@@ -167,12 +167,12 @@ function App() {
               <Route path="/crewing-agents" element={<CrewingAgentPage />} />
             </>
           )}
-          
+
           <Route path="/profile" element={<UserProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
-      </>
-    )
+      </>,
+    ),
   );
 
   return isAuthChecked ? <RouterProvider router={routes} /> : "";

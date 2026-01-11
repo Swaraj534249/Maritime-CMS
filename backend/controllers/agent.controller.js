@@ -74,6 +74,7 @@ exports.create = async (req, res) => {
       password: hashedPassword,
       role: "AGENT",
       agencyId: agency._id,
+      industryType: agency.industryType,
       userType,
       isVerified: false,
       createdBy: req.user._id,
@@ -97,6 +98,7 @@ exports.create = async (req, res) => {
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
             <p style="margin: 10px 0;"><strong>Email:</strong> ${email}</p>
             <p style="margin: 10px 0;"><strong>Password:</strong> ${password}</p>
+            <p style="margin: 10px 0;"><strong>Industry:</strong> ${agency.industryType}</p>
             <p style="margin: 10px 0;"><strong>Login URL:</strong> <a href="${loginUrl}" style="color: #007bff;">${loginUrl}</a></p>
           </div>
           
@@ -142,17 +144,17 @@ exports.list = async (req, res) => {
       all,
       isActive,
       agencyId: queryAgencyId,
+      industryType,
     } = req.query;
 
     const pageNumber = Number(page || 1);
     const pageSizeNumber = Number(limit || 10);
     const userRole = req.user.role;
     const userAgencyId = req.user.agencyId;
+    const userIndustryType = req.user.industryType;
 
     // Determine which agency to filter by
     let targetAgencyId;
-    
-    console.log("agencyId: ",queryAgencyId, userAgencyId);
     
     if (userRole === "SUPER_ADMIN") {
       targetAgencyId = queryAgencyId || null;
@@ -186,10 +188,16 @@ exports.list = async (req, res) => {
       extraFilter.isActive = false;
     }
 
+    if (industryType) {
+      extraFilter.industryType = industryType;
+    } else if (userRole !== "SUPER_ADMIN" && userIndustryType) {
+      extraFilter.industryType = userIndustryType;
+    }
+
     let agencyContext = null;
     if (targetAgencyId) {
       const agency = await Agency.findById(targetAgencyId, 
-        "name maxAgents isActive"
+        "name maxAgents isActive industryType"
       ).lean();
       
       if (agency) {
@@ -198,6 +206,7 @@ exports.list = async (req, res) => {
           name: agency.name,
           maxAgents: agency.maxAgents,
           isActive: agency.isActive,
+          industryType: agency.industryType,
         };
       }
     }
@@ -217,7 +226,7 @@ exports.list = async (req, res) => {
       const data = await User.find(queryFilter)
         .select("-password")
         .populate("createdBy", "name email")
-        .populate("agencyId", "name email")
+        .populate("agencyId", "name email industryType")
         .sort(sort)
         .lean();
       return res.json(data);
@@ -227,7 +236,7 @@ exports.list = async (req, res) => {
       User.find(queryFilter)
         .select("-password")
         .populate("createdBy", "name email")
-        .populate("agencyId", "name email")
+        .populate("agencyId", "name email industryType")
         .skip(skip)
         .limit(pageSizeNumber)
         .sort(sort)
@@ -268,7 +277,8 @@ exports.list = async (req, res) => {
             agencyName: "$agency.name",
             agentCount: "$count",
             maxAgents: "$agency.maxAgents",
-            isActive: "$agency.isActive"
+            isActive: "$agency.isActive",
+            industryType: "$agency.industryType",
           }
         }
       ]);
@@ -325,7 +335,7 @@ exports.getById = async (req, res) => {
     const agent = await User.findOne(query)
       .select("-password")
       .populate("createdBy", "name email")
-      .populate("agencyId", "name email");
+      .populate("agencyId", "name email industryType");
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });
@@ -354,6 +364,7 @@ exports.updateById = async (req, res) => {
     delete updates.role;
     delete updates.agencyId;
     delete updates.createdBy;
+    delete updates.industryType;
 
     // Build query based on role
     const query = {
@@ -365,7 +376,6 @@ exports.updateById = async (req, res) => {
     if (userRole === "AGENCY_ADMIN") {
       query.agencyId = userAgencyId;
     }
-    // Super admin can update any agent (no additional filter)
 
     const agent = await User.findOneAndUpdate(
       query,
@@ -373,7 +383,7 @@ exports.updateById = async (req, res) => {
       { new: true, runValidators: true }
     )
       .select("-password")
-      .populate("agencyId", "name email");
+      .populate("agencyId", "name email industryType");
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });
@@ -388,9 +398,6 @@ exports.updateById = async (req, res) => {
   }
 };
 
-/**
- * Toggle agent status (active/inactive)
- */
 exports.toggleStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -403,11 +410,9 @@ exports.toggleStatus = async (req, res) => {
       role: { $in: ["AGENT", "AGENCY_ADMIN"] },
     };
 
-    // Agency admin can only toggle agents from their own agency
     if (userRole === "AGENCY_ADMIN") {
       query.agencyId = userAgencyId;
     }
-    // Super admin can toggle any agent (no additional filter)
 
     const agent = await User.findOne(query);
 
@@ -421,7 +426,7 @@ exports.toggleStatus = async (req, res) => {
     // Return agent with populated fields
     const updatedAgent = await User.findById(agent._id)
       .select("-password")
-      .populate("agencyId", "name email");
+      .populate("agencyId", "name email industryType");
 
     res.json(updatedAgent);
   } catch (error) {
@@ -432,9 +437,6 @@ exports.toggleStatus = async (req, res) => {
   }
 };
 
-/**
- * Reset agent password
- */
 exports.resetPassword = async (req, res) => {
   try {
     const { id } = req.params;
@@ -454,11 +456,9 @@ exports.resetPassword = async (req, res) => {
       role: { $in: ["AGENT", "AGENCY_ADMIN"] },
     };
 
-    // Agency admin can only reset password for agents from their own agency
     if (userRole === "AGENCY_ADMIN") {
       query.agencyId = userAgencyId;
     }
-    // Super admin can reset any agent's password (no additional filter)
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
@@ -468,7 +468,7 @@ exports.resetPassword = async (req, res) => {
       { new: true }
     )
       .select("-password")
-      .populate("agencyId", "name email");
+      .populate("agencyId", "name email industryType");
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });

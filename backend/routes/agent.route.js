@@ -3,8 +3,8 @@ const router = express.Router();
 const controller = require("../controllers/agent.controller");
 const { verifyToken } = require("../middleware/VerifyToken");
 const { authorize, checkAgencyStatus } = require("../middleware/authorization");
+const { autoInjectTenantData } = require("../middleware/autoInjectTenantData");
 
-// All routes require authentication and AGENCY_ADMIN role
 router.use(verifyToken);
 router.use(authorize("AGENCY_ADMIN", "SUPER_ADMIN"));
 router.use((req, res, next) => {
@@ -13,6 +13,15 @@ router.use((req, res, next) => {
   }
   return checkAgencyStatus(req, res, next);
 });
+
+router.use(
+  autoInjectTenantData({
+    includeAgencyId: true,
+    includeCreatedBy: true,
+    includeIndustryType: true,
+    allowOverride: false,
+  })
+);
 
 // Create agent
 router.post("/", controller.create);

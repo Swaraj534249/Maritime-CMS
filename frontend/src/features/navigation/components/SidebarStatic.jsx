@@ -74,8 +74,18 @@ export const SidebarStatic = () => {
 
   // Common contract items (if needed for all roles)
   const contracts = [
-    { name: "Proposed", to: "/propose", icon: <ArticleIcon />, title: "Proposed Contracts" },
-    { name: "Selected", to: "/selecte", icon: <ArticleIcon />, title: "Selected Contracts" },
+    {
+      name: "Proposed",
+      to: "/propose",
+      icon: <ArticleIcon />,
+      title: "Proposed Contracts",
+    },
+    {
+      name: "Selected",
+      to: "/selecte",
+      icon: <ArticleIcon />,
+      title: "Selected Contracts",
+    },
   ];
 
   const menuItems = getMenuItems();
@@ -109,7 +119,7 @@ export const SidebarStatic = () => {
         }}
       >
         <Divider sx={{ width: "100%" }} />
-        
+
         {/* Main Menu Items */}
         <List sx={{ pt: 1, width: "100%" }}>
           {menuItems.map((item) => (
@@ -121,17 +131,21 @@ export const SidebarStatic = () => {
                 justifyContent: "center",
                 py: 2,
                 width: "100%",
-                bgcolor: isActive(item.to) ? "rgba(25, 118, 210, 0.08)" : "transparent",
-                borderLeft: isActive(item.to) ? "3px solid #1976d2" : "3px solid transparent",
+                bgcolor: isActive(item.to)
+                  ? "rgba(25, 118, 210, 0.08)"
+                  : "transparent",
+                borderLeft: isActive(item.to)
+                  ? "3px solid #1976d2"
+                  : "3px solid transparent",
                 "&:hover": {
                   bgcolor: "rgba(25, 118, 210, 0.04)",
                 },
               }}
               title={item.title}
             >
-              <ListItemIcon 
-                sx={{ 
-                  minWidth: 0, 
+              <ListItemIcon
+                sx={{
+                  minWidth: 0,
                   justifyContent: "center",
                   color: isActive(item.to) ? "primary.main" : "inherit",
                 }}
@@ -156,17 +170,21 @@ export const SidebarStatic = () => {
                     justifyContent: "center",
                     py: 2,
                     width: "100%",
-                    bgcolor: isActive(c.to) ? "rgba(25, 118, 210, 0.08)" : "transparent",
-                    borderLeft: isActive(c.to) ? "3px solid #1976d2" : "3px solid transparent",
+                    bgcolor: isActive(c.to)
+                      ? "rgba(25, 118, 210, 0.08)"
+                      : "transparent",
+                    borderLeft: isActive(c.to)
+                      ? "3px solid #1976d2"
+                      : "3px solid transparent",
                     "&:hover": {
                       bgcolor: "rgba(25, 118, 210, 0.04)",
                     },
                   }}
                   title={c.title}
                 >
-                  <ListItemIcon 
-                    sx={{ 
-                      minWidth: 0, 
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 0,
                       justifyContent: "center",
                       color: isActive(c.to) ? "primary.main" : "inherit",
                     }}

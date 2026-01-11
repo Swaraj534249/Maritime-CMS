@@ -59,7 +59,7 @@ export const fetchAgenciesAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const createAgencyAsync = createAsyncThunk(
@@ -70,7 +70,7 @@ export const createAgencyAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const updateAgencyByIdAsync = createAsyncThunk(
@@ -81,7 +81,7 @@ export const updateAgencyByIdAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const fetchAgencyByIdAsync = createAsyncThunk(
@@ -92,7 +92,7 @@ export const fetchAgencyByIdAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const toggleAgencyStatusAsync = createAsyncThunk(
@@ -103,7 +103,7 @@ export const toggleAgencyStatusAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 const agencySlice = createSlice({
@@ -182,7 +182,7 @@ const agencySlice = createSlice({
       .addCase(updateAgencyByIdAsync.fulfilled, (state, action) => {
         state.status.update = "fulfilled";
         const idx = state.list.data.findIndex(
-          (v) => v._id === action.payload.agency._id
+          (v) => v._id === action.payload.agency._id,
         );
         if (idx !== -1) {
           state.list.data[idx] = {

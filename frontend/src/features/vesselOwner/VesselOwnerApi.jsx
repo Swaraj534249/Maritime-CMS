@@ -59,7 +59,7 @@ export const updateVesselOwnerById = async (data) => {
 export const toggleVesselOwnerStatus = async (vesselOwnerId) => {
   try {
     const res = await axiosi.patch(
-      `/vesselOwners/${vesselOwnerId}/toggle-status`
+      `/vesselOwners/${vesselOwnerId}/toggle-status`,
     );
     return res.data;
   } catch (error) {

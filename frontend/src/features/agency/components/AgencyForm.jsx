@@ -12,6 +12,7 @@ const agencySchema = yup.object({
   contactPerson: yup.string().required("Contact person is required"),
   phone: yup.string().required("Phone is required"),
   address: yup.string(),
+  industryType: yup.string().required("Industry type is required"),
   maxAgents: yup
     .number()
     .positive("Must be positive")
@@ -27,7 +28,6 @@ const agencySchema = yup.object({
         .min(6, "Password must be at least 6 characters"),
     otherwise: (schema) => schema.notRequired(),
   }),
-  userType: yup.string(),
 });
 
 // Field Configuration
@@ -44,14 +44,18 @@ const getAgencyFields = (isEditMode) => [
     type: "email",
     gridSize: { xs: 12 },
     disabled: isEditMode,
-    helperText: isEditMode ? undefined : "This email will be used for the agency admin account",
+    helperText: isEditMode
+      ? undefined
+      : "This email will be used for the agency admin account",
   },
   {
     name: "contactPerson",
     label: "Contact Person",
     type: "text",
     gridSize: { xs: 12 },
-    helperText: isEditMode ? undefined : "This will be the admin name",
+    helperText: isEditMode
+      ? undefined
+      : "This person will be the Agency Manager (AGENCY_ADMIN)",
   },
   {
     name: "phone",
@@ -65,6 +69,22 @@ const getAgencyFields = (isEditMode) => [
     type: "textarea",
     rows: 2,
     gridSize: { xs: 12 },
+  },
+  {
+    name: "industryType",
+    label: "Industry Type",
+    type: "select",
+    gridSize: { xs: 12 },
+    options: [
+      { value: "maritime", label: "Maritime" },
+      { value: "healthcare", label: "Healthcare" },
+      { value: "construction", label: "Construction" },
+      { value: "hospitality", label: "Hospitality" },
+      { value: "other", label: "Other" },
+    ],
+    helperText: isEditMode
+      ? "Changing industry type will update all users in this agency"
+      : "Select the primary industry this agency operates in",
   },
   ...(isEditMode
     ? [
@@ -82,22 +102,9 @@ const getAgencyFields = (isEditMode) => [
           label: "Password",
           type: "password",
           gridSize: { xs: 12 },
-          helperText: "Minimum 6 characters",
+          helperText: "Minimum 6 characters for Agency Manager login",
         },
       ]),
-  {
-    name: "userType",
-    label: "User Type",
-    type: "select",
-    gridSize: { xs: 12 },
-    options: [
-      { value: "", label: "None" },
-      { value: "Crew", label: "Crew" },
-      { value: "Crewing Agent", label: "Crewing Agent" },
-      { value: "Vessel Owner", label: "Vessel Owner" },
-      { value: "Vessel Manager", label: "Vessel Manager" },
-    ],
-  },
   {
     name: "maxAgents",
     label: "Max Agents",
@@ -133,11 +140,11 @@ const AgencyForm = ({ formId, initialData = null, onClose }) => {
     contactPerson: initialData?.contactPerson || "",
     phone: initialData?.phone || "",
     address: initialData?.address || "",
+    industryType: initialData?.industryType || "maritime",
     maxAgents: initialData?.maxAgents || 10,
     subscriptionPlan: initialData?.subscriptionPlan || "enterprise",
     licenseNumber: initialData?.licenseNumber || "",
     password: "",
-    userType: initialData?.admin?.userType || "",
   };
 
   const handleFormSubmit = async (formData) => {
@@ -154,12 +161,14 @@ const AgencyForm = ({ formId, initialData = null, onClose }) => {
           updateAgencyByIdAsync({
             id: initialData._id,
             data,
-          })
+          }),
         ).unwrap();
         toast.success("Agency updated successfully");
       } else {
         await dispatch(createAgencyAsync(data)).unwrap();
-        toast.success("Agency created successfully");
+        toast.success(
+          "Agency created successfully! Manager account created with userType: 'manager'",
+        );
       }
       onClose();
     } catch (error) {

@@ -72,7 +72,8 @@ export const AgentManagement = () => {
   const [editData, setEditData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { anchorEl, selectedRowId, handleMenuOpen, handleMenuClose } = useRowActions();
+  const { anchorEl, selectedRowId, handleMenuOpen, handleMenuClose } =
+    useRowActions();
 
   const isViewingSpecificAgency = !!agencyId;
 
@@ -83,7 +84,7 @@ export const AgentManagement = () => {
       userType: "userType",
       id: "_id",
     }),
-    []
+    [],
   );
 
   const fetchPage = (
@@ -92,17 +93,17 @@ export const AgentManagement = () => {
     sortField,
     sortOrder,
     searchValue,
-    controller
+    controller,
   ) => {
     const params = { page: pageOneBased, limit };
     if (sortField) params.sortField = sortField;
     if (sortOrder) params.sortOrder = sortOrder;
     if (searchValue) params.searchValue = searchValue;
-    
+
     if (agencyId) {
       params.agencyId = agencyId;
     }
-    
+
     dispatch(fetchAgentsAsync({ params, signal: controller }));
   };
 
@@ -120,7 +121,7 @@ export const AgentManagement = () => {
       sortField,
       sortOrder,
       searchValue,
-      controller.signal
+      controller.signal,
     );
 
     return () => {
@@ -245,7 +246,7 @@ export const AgentManagement = () => {
       AGENCY_ADMIN: "warning",
       AGENT: "info",
     };
-    
+
     return (
       <Chip
         label={role === "AGENCY_ADMIN" ? "Admin" : "Agent"}
@@ -282,10 +283,7 @@ export const AgentManagement = () => {
     const id = params.row.id;
 
     return (
-      <IconButton
-        size="small"
-        onClick={(event) => handleMenuOpen(event, id)}
-      >
+      <IconButton size="small" onClick={(event) => handleMenuOpen(event, id)}>
         <MoreVertIcon fontSize="small" />
       </IconButton>
     );
@@ -390,7 +388,9 @@ export const AgentManagement = () => {
           {agencyContext && (
             <>
               <Chip
-                label={`${aggregates?.counts?.total || 0}/${agencyContext.maxAgents}`}
+                label={`${aggregates?.counts?.total || 0}/${
+                  agencyContext.maxAgents
+                }`}
                 size="small"
                 variant="outlined"
                 color="primary"
@@ -402,7 +402,7 @@ export const AgentManagement = () => {
               />
             </>
           )}
-          
+
           <Search
             value={searchValue}
             onDebouncedChange={(val) => handleSearch(val)}
@@ -410,7 +410,7 @@ export const AgentManagement = () => {
             placeholder="Search agents..."
             sx={{ width: { xs: "140px", sm: "220px", md: "280px" } }}
           />
-          
+
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -469,7 +469,12 @@ export const AgentManagement = () => {
         </MenuItem>
       </Menu>
 
-      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openModal}
+        onClose={handleCloseModal}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           {editData ? "Edit Agent" : "Add New Agent"}
           <IconButton

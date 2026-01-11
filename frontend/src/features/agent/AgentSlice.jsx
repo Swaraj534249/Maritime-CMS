@@ -61,7 +61,7 @@ export const fetchAgentsAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const createAgentAsync = createAsyncThunk(
@@ -72,7 +72,7 @@ export const createAgentAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const updateAgentByIdAsync = createAsyncThunk(
@@ -83,7 +83,7 @@ export const updateAgentByIdAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const fetchAgentByIdAsync = createAsyncThunk(
@@ -94,7 +94,7 @@ export const fetchAgentByIdAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const toggleAgentStatusAsync = createAsyncThunk(
@@ -105,7 +105,7 @@ export const toggleAgentStatusAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 export const resetAgentPasswordAsync = createAsyncThunk(
@@ -116,7 +116,7 @@ export const resetAgentPasswordAsync = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
-  }
+  },
 );
 
 const agentSlice = createSlice({
@@ -191,7 +191,7 @@ const agentSlice = createSlice({
       .addCase(updateAgentByIdAsync.fulfilled, (state, action) => {
         state.status.update = "fulfilled";
         const idx = state.list.data.findIndex(
-          (v) => v._id === action.payload._id
+          (v) => v._id === action.payload._id,
         );
         if (idx !== -1) state.list.data[idx] = action.payload;
       })

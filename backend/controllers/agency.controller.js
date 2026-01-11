@@ -1,7 +1,6 @@
 const Agency = require("../models/Agency");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
-const mongoose = require("mongoose");
 const { sanitizeUser } = require("../utils/SanitizeUser");
 const { buildListQuery } = require("../utils/ListQueryBuilder");
 const { buildListResponse } = require("../utils/ListResponseBuilder");
@@ -19,12 +18,25 @@ exports.create = async (req, res) => {
       subscriptionPlan, 
       maxAgents, 
       password, 
-      userType 
+      industryType
     } = req.body;
 
     if (!name || !email || !contactPerson || !phone || !password) {
       return res.status(400).json({
         message: "Name, email, contact person, phone, and password are required",
+      });
+    }
+
+    if (!industryType) {
+      return res.status(400).json({
+        message: "Industry type is required. Please select from dropdown.",
+      });
+    }
+
+    const allowedIndustries = ["maritime", "healthcare", "construction", "hospitality", "other"];
+    if (!allowedIndustries.includes(industryType)) {
+      return res.status(400).json({
+        message: `Invalid industry type. Allowed values: ${allowedIndustries.join(", ")}`,
       });
     }
 
@@ -50,6 +62,7 @@ exports.create = async (req, res) => {
       phone,
       address,
       licenseNumber,
+      industryType,
       subscriptionPlan: subscriptionPlan || "basic",
       maxAgents: maxAgents || 5,
     });
@@ -64,7 +77,8 @@ exports.create = async (req, res) => {
       password: hashedPassword,
       role: "AGENCY_ADMIN",
       agencyId: newAgency._id,
-      userType: userType || null,
+      industryType,
+      userType: "manager",
       isVerified: false,
     };
 
@@ -91,6 +105,8 @@ exports.create = async (req, res) => {
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
             <h3 style="margin-top: 0;">Agency Details:</h3>
             <p style="margin: 10px 0;"><strong>Agency Name:</strong> ${name}</p>
+            <p style="margin: 10px 0;"><strong>Industry Type:</strong> ${industryType}</p>
+            <p style="margin: 10px 0;"><strong>User Role:</strong> Manager</p>
             <p style="margin: 10px 0;"><strong>Subscription Plan:</strong> ${subscriptionPlan || "basic"}</p>
             <p style="margin: 10px 0;"><strong>Max Agents Allowed:</strong> ${maxAgents || 5}</p>
           </div>
@@ -130,10 +146,8 @@ exports.create = async (req, res) => {
           <p style="color: #888; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
         </div>`
       );
-      // console.log("Agency admin welcome email sent successfully to:", email);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
-      // Don't fail the request if email fails
     }
 
     res.status(201).json({
@@ -159,6 +173,7 @@ exports.list = async (req, res) => {
       sortOrder,
       all,
       isActive,
+      industryType,
     } = req.query;
 
     const pageNumber = Number(page || 1);
@@ -171,6 +186,10 @@ exports.list = async (req, res) => {
       extraFilter.isActive = true;
     } else if (isActive === "false") {
       extraFilter.isActive = false;
+    }
+
+    if (industryType) {
+      extraFilter.industryType = industryType;
     }
 
     const { queryFilter, skip, sort } = buildListQuery({
@@ -239,9 +258,14 @@ exports.list = async (req, res) => {
       admin: adminByAgency[agency._id.toString()] || null,
     }));
 
-    const [activeCount, inactiveCount] = await Promise.all([
+    const [activeCount, inactiveCount, industryGroups] = await Promise.all([
       Agency.countDocuments({ ...extraFilter, isActive: true }),
       Agency.countDocuments({ ...extraFilter, isActive: false }),
+      Agency.aggregate([
+        { $match: extraFilter },
+        { $group: { _id: "$industryType", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
     ]);
 
     res.json(
@@ -259,6 +283,7 @@ exports.list = async (req, res) => {
             active: activeCount,
             inactive: inactiveCount,
           },
+          byIndustry: industryGroups,
         },
         context: {},
       })
@@ -286,7 +311,6 @@ exports.getById = async (req, res) => {
       .select("-password")
       .populate("name email");
 
-    // Get agents count
     const agentsCount = await User.countDocuments({
       agencyId: agency._id,
       role: "AGENT",
@@ -317,6 +341,9 @@ exports.updateById = async (req, res) => {
     const passwordUpdate = updates.password;
     delete updates.password;
 
+    const industryTypeChanged = updates.industryType && updates.industryType !== undefined;
+    const newIndustryType = updates.industryType;
+
     const updatedAgency = await Agency.findByIdAndUpdate(
       id,
       { $set: updates },
@@ -325,6 +352,13 @@ exports.updateById = async (req, res) => {
 
     if (!updatedAgency) {
       return res.status(404).json({ message: "Agency not found" });
+    }
+
+    if (industryTypeChanged) {
+      await User.updateMany(
+        { agencyId: id },
+        { $set: { industryType: newIndustryType } }
+      );
     }
 
     if (passwordUpdate) {
@@ -401,7 +435,6 @@ exports.toggleStatus = async (req, res) => {
     agency.isActive = !agency.isActive;
     await agency.save();
 
-    // Optionally toggle all users of this agency
     await User.updateMany({ agencyId: agency._id }, { isActive: agency.isActive });
 
     res.json(agency);

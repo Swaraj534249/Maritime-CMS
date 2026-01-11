@@ -99,15 +99,15 @@ export const VesselOwners = () => {
     [],
   );
 
-//   const location = useLocation();
-//  const navigationType = useNavigationType();
+  //   const location = useLocation();
+  //  const navigationType = useNavigationType();
 
-// useEffect(() => {
-//   // Only KEEP state when coming back via browser back button
-//   if (navigationType !== "POP") {
-//     dispatch(resetVesselOwnerTableState());
-//   }
-// }, [navigationType, dispatch]);
+  // useEffect(() => {
+  //   // Only KEEP state when coming back via browser back button
+  //   if (navigationType !== "POP") {
+  //     dispatch(resetVesselOwnerTableState());
+  //   }
+  // }, [navigationType, dispatch]);
 
   const fetchPage = (
     pageOneBased,
@@ -146,12 +146,12 @@ export const VesselOwners = () => {
     };
   }, [paginationModel, sortModel, searchValue, refreshKey]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (updateStatus === "fulfilled") {
       toast.success("Vessel Owner status updated successfully");
       dispatch(resetStatuses());
     }
-  
+
     if (updateStatus === "rejected") {
       toast.error("Failed to update vessel status");
       dispatch(resetStatuses());
@@ -170,10 +170,10 @@ export const VesselOwners = () => {
     handleMenuClose();
   };
 
- const handleToggleStatus = () => {
-  dispatch(toggleVesselOwnerStatusAsync(selectedRowId));
-  handleMenuClose();
-};
+  const handleToggleStatus = () => {
+    dispatch(toggleVesselOwnerStatusAsync(selectedRowId));
+    handleMenuClose();
+  };
 
   const handleCloseModal = () => {
     setOpenModal(false);
@@ -471,10 +471,10 @@ export const VesselOwners = () => {
             Edit
           </MenuItem>
           <MenuItem disabled onClick={handleToggleStatus}>
-  {vesselOwners.find(v => v._id === selectedRowId)?.isDeleted
-    ? "Restore"
-    : "Deactivate"}
-</MenuItem>
+            {vesselOwners.find((v) => v._id === selectedRowId)?.isDeleted
+              ? "Restore"
+              : "Deactivate"}
+          </MenuItem>
         </Menu>
 
         <DocumentsDialog

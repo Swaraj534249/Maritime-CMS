@@ -51,8 +51,8 @@ export const toggleAgentStatus = async (agentId) => {
 
 export const resetAgentPassword = async ({ id, newPassword }) => {
   try {
-    const res = await axiosi.post(`/agents/${id}/reset-password`, { 
-      newPassword 
+    const res = await axiosi.post(`/agents/${id}/reset-password`, {
+      newPassword,
     });
     return res.data;
   } catch (error) {

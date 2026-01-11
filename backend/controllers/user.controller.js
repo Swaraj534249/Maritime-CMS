@@ -21,8 +21,6 @@ exports.getAll = async (req, res) => {
     const totalDocs = await User.find(filter).countDocuments().exec();
     const results = await User.find(filter).skip(skip).limit(limit).exec();
 
-    console.log("results", results, totalDocs);
-
     res.set("X-Total-Count", totalDocs);
 
     res.status(200).json(results);
@@ -36,23 +34,51 @@ exports.getAll = async (req, res) => {
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = (await User.findById(id)).toObject();
-    delete result.password;
+    const result = await User.findById(id)
+      .select("-password")
+      .populate("agencyId", "name email industryType") // NEW: Include industryType
+      .lean();
+    
+    if (!result) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
     res.status(200).json(result);
   } catch (error) {
     console.log(error);
-    res
-      .status(500)
-      .json({ message: "Error getting your details, please try again later" });
+    res.status(500).json({ 
+      message: "Error getting your details, please try again later" 
+    });
   }
 };
+
 exports.updateById = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = (
-      await User.findByIdAndUpdate(id, req.body, { new: true })
-    ).toObject();
-    delete updated.password;
+    const updates = req.body;
+    
+    // Prevent updating critical fields
+    delete updates.password;
+    delete updates.role;
+    delete updates.agencyId;
+    delete updates.industryType; // NEW: Prevent manual industryType changes
+    delete updates.createdBy;
+    delete updates._id;
+    delete updates.email;
+    
+    const updated = await User.findByIdAndUpdate(
+      id, 
+      { $set: updates }, 
+      { new: true, runValidators: true }
+    )
+      .select("-password")
+      .populate("agencyId", "name email industryType") // NEW: Include industryType
+      .lean();
+    
+    if (!updated) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
     res.status(200).json(updated);
   } catch (error) {
     console.log(error);
