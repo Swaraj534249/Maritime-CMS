@@ -36,4 +36,18 @@ Maritime recruitment and crew management involves a complex set of workflows —
 🌍 Multi-tenant support for agencies  
 📊 Analytics dashboards for hiring metrics
 
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Node.js, Express.js |
+| Frontend | React, React Router |
+| Database | MongoDB |
+| API | RESTful endpoints |
+| Authentication | JWT |
+| State Management | React Context / Redux (optional) |
+
+
 
