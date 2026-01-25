@@ -32,9 +32,12 @@ import { CrewingAgentPage } from "./pages/CrewingAgentPage";
 import { VesselPage } from "./pages/VesselPage";
 import { AgentManagementPage } from "./pages/AgentManagementPage";
 import { AgencyManagementPage } from "./pages/AgencyManagementPage";
+import { CandidatesPage } from "./pages/CandidatesPage";
+import { CandidatesFormPage } from "./pages/CandidatesFormPage";
 import {
   AgencyAdminProtected,
   SuperAdminProtected,
+  AgentProtected,
 } from "./features/auth/components/RoleProtected";
 
 function App() {
@@ -155,6 +158,30 @@ function App() {
                   </AgencyAdminProtected>
                 }
               />
+              <Route
+                path="/candidates"
+                element={
+                  <AgencyAdminProtected>
+                    <CandidatesPage />
+                  </AgencyAdminProtected>
+                }
+              />
+              <Route
+                path="/candidates/add"
+                element={
+                  <AgencyAdminProtected>
+                    <CandidatesFormPage />
+                  </AgencyAdminProtected>
+                }
+              />
+              <Route
+                path="/candidates/edit/:id"
+                element={
+                  <AgencyAdminProtected>
+                    <CandidatesFormPage />
+                  </AgencyAdminProtected>
+                }
+              />
             </>
           )}
 
@@ -162,9 +189,56 @@ function App() {
             <>
               <Route path="/" element={<HomePage />} />
               <Route path="/profile" element={<UserProfilePage />} />
-              <Route path="/vessel-owners" element={<VesselOwnerPage />} />
-              <Route path="/vessels/:id" element={<VesselPage />} />
-              <Route path="/crewing-agents" element={<CrewingAgentPage />} />
+              <Route
+                path="/vessel-owners"
+                element={
+                  <AgentProtected>
+                    <VesselOwnerPage />
+                  </AgentProtected>
+                }
+              />
+              <Route
+                path="/vessels/:id"
+                element={
+                  <AgentProtected>
+                    <VesselPage />
+                  </AgentProtected>
+                }
+              />
+              <Route
+                path="/crewing-agents"
+                element={
+                  <AgentProtected>
+                    <CrewingAgentPage />
+                  </AgentProtected>
+                }
+              />
+
+              {/* Candidates Routes for Agents */}
+              <Route
+                path="/candidates"
+                element={
+                  <AgentProtected>
+                    <CandidatesPage />
+                  </AgentProtected>
+                }
+              />
+              <Route
+                path="/candidates/add"
+                element={
+                  <AgentProtected>
+                    <CandidatesFormPage />
+                  </AgentProtected>
+                }
+              />
+              <Route
+                path="/candidates/edit/:id"
+                element={
+                  <AgentProtected>
+                    <CandidatesFormPage />
+                  </AgentProtected>
+                }
+              />
             </>
           )}
 
