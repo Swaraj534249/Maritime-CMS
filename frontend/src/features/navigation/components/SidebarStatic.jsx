@@ -14,6 +14,7 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import ArticleIcon from "@mui/icons-material/Article";
 import WorkIcon from "@mui/icons-material/Work";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import PersonIcon from "@mui/icons-material/Person";
 import { selectUserRole } from "../../auth/AuthSlice";
 
 const drawerWidth = 72;
@@ -41,6 +42,12 @@ export const SidebarStatic = () => {
           title: "Agent Management",
         },
         {
+          name: "Candidates",
+          to: "/candidates",
+          icon: <PersonIcon />,
+          title: "Candidates/Crew",
+        },
+        {
           name: "Vessel Owners",
           to: "/vessel-owners",
           icon: <BusinessIcon />,
@@ -54,6 +61,12 @@ export const SidebarStatic = () => {
         },
       ],
       AGENT: [
+        {
+          name: "Candidates",
+          to: "/candidates",
+          icon: <PersonIcon />,
+          title: "Candidates/Crew",
+        },
         {
           name: "Vessel Owners",
           to: "/vessel-owners",

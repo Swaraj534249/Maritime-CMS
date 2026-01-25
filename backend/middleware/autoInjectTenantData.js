@@ -70,26 +70,3 @@ exports.autoInjectTenantData = (options = {}) => {
     }
   };
 };
-// ### **🛠️ Multi-Tenancy Enhancements Summary:**
-
-// 1. **industryType is now a single value** (not array) - Already was in your schemas
-// 2. **Agency creation flow:**
-//    - SUPER_ADMIN selects industryType from dropdown
-//    - AGENCY_ADMIN is created with `userType: "manager"` (hardcoded)
-//    - No userType dropdown needed in agency form
-// 3. **Token now includes industryType:**
-//    - `sanitizeUserForToken` adds industryType
-//    - `verifyToken` extracts industryType and adds to `req.user`
-//    - Console logs show exactly what's in token
-// 4. **autoInjectTenantData middleware created:**
-//    - Auto-injects `agencyId`, `createdBy`, `industryType` from token
-//    - No manual assignment needed in controllers
-//    - Can be configured per route
-
-// ### **🎯 Token Flow:**
-// ```
-// Login → sanitizeUserForToken (adds industryType) → JWT created →
-// → Token stored in cookie →
-// → VerifyToken middleware (extracts industryType to req.user) →
-// → autoInjectTenantData (injects to req.body) →
-// → Controller (data already has agencyId, createdBy, industryType)

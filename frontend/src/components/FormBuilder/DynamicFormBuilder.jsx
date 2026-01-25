@@ -34,11 +34,13 @@ const DynamicFormBuilder = ({
   isEditMode = false,
   submitButtonText,
   cancelButtonText = "Cancel",
-  existingFiles = {}, // For edit mode: { company_logo: {...}, contract: {main, old}, license: {main, old} }
+  existingFiles = {},
+  onResumeUpload,
 }) => {
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
@@ -48,7 +50,7 @@ const DynamicFormBuilder = ({
   // Local state for file uploads
   const [uploadedFiles, setUploadedFiles] = useState({});
 
-  const handleFileChange = (fieldName, files, multiple = false) => {
+  const handleFileChange = async (fieldName, files, multiple = false) => {
     if (multiple) {
       const existingFiles = uploadedFiles[fieldName] || [];
       setUploadedFiles((prev) => ({
@@ -56,10 +58,15 @@ const DynamicFormBuilder = ({
         [fieldName]: [...existingFiles, ...Array.from(files)],
       }));
     } else {
+      const file = files[0] || null;
       setUploadedFiles((prev) => ({
         ...prev,
-        [fieldName]: files[0] || null,
+        [fieldName]: file,
       }));
+
+      if (fieldName === "resume" && file && onResumeUpload) {
+        await onResumeUpload(file, setValue);
+      }
     }
   };
 

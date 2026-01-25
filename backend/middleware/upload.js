@@ -46,7 +46,6 @@ const storage = multer.diskStorage({
 
     for (const field of rules) {
       const value = coerceToString(req.body[field]);
-      console.log("value: ", value);
 
       if (value) {
         rawSubFolderValue = value;
@@ -149,6 +148,19 @@ module.exports = {
     { name: "vessel_image", maxCount: 1 },
     { name: "vessel_documents", maxCount: 10 },
   ]),
+
+  uploadCandidateFiles : upload.fields([
+  { name: "photo", maxCount: 1 },
+  { name: "passport", maxCount: 1 },
+  { name: "cdc", maxCount: 1 },
+  { name: "indos", maxCount: 1 },
+  { name: "visa", maxCount: 1 },
+  { name: "aadhar", maxCount: 1 },
+  { name: "pan", maxCount: 1 },
+  { name: "medicalCertificate", maxCount: 1 },
+  { name: "seamanBook", maxCount: 1 },
+  { name: "resume", maxCount: 1 },
+]),
 
   uploadSingle: (fieldName = "file") => upload.single(fieldName),
   uploadMultiple: (fieldName = "files", maxCount = 10) =>

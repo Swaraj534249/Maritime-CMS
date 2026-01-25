@@ -11,6 +11,7 @@ const agentRoutes = require("./routes/agent.route");
 
 const vesselOwnerRoutes = require("./routes/vesselOwner.route");
 const vesselRoutes = require("./routes/vessel.route");
+const candidateRoutes = require("./routes/candidate.route");
 const crewingAgentRoutes = require("./routes/crewingAgent.route");
 
 const { connectToDB } = require("./database/db");
@@ -45,6 +46,7 @@ server.use("/agents", agentRoutes);
 
 server.use("/vesselOwners", vesselOwnerRoutes);
 server.use("/vessels", vesselRoutes);
+server.use("/candidates", candidateRoutes);
 server.use("/crewingAgents", crewingAgentRoutes);
 
 server.get("/", (req, res) => {
