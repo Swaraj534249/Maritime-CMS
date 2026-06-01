@@ -27,6 +27,7 @@ import {
 } from "../AuthSlice";
 import { toast } from "react-toastify";
 import { MotionConfig, motion } from "framer-motion";
+import { getPostLoginPath } from "../authPaths";
 
 export const Login = () => {
   const dispatch = useDispatch();
@@ -44,14 +45,14 @@ export const Login = () => {
   const is900 = useMediaQuery(theme.breakpoints.down(900));
   const is480 = useMediaQuery(theme.breakpoints.down(480));
 
-  // handles user redirection
   useEffect(() => {
-    if (loggedInUser && loggedInUser?.isVerified) {
-      navigate("/");
-    } else if (loggedInUser && !loggedInUser?.isVerified) {
-      navigate("/verify-otp");
+    if (
+      loggedInUser?.status === "active" ||
+      loggedInUser?.status === "verified"
+    ) {
+      navigate(getPostLoginPath(loggedInUser));
     }
-  }, [loggedInUser]);
+  }, [loggedInUser, navigate]);
 
   // handles login error and toast them
   useEffect(() => {
@@ -62,7 +63,11 @@ export const Login = () => {
 
   // handles login status and dispatches reset actions to relevant states in cleanup
   useEffect(() => {
-    if (status === "fullfilled" && loggedInUser?.isVerified === true) {
+    if (
+      status === "fullfilled" &&
+      (loggedInUser?.status === "active" ||
+        loggedInUser?.status === "verified")
+    ) {
       toast.success(`Login successful`);
       reset();
     }

@@ -2,10 +2,64 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DescriptionIcon from "@mui/icons-material/Description";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 
-export const getFileURL = (filePath) => {
-  if (!filePath) return null;
-  const baseURL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-  return `${baseURL}/${filePath.replace(/\\/g, "/")}`;
+/** Must match backend `MAX_BYTES` (10 MB). */
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const MAX_FILE_SIZE_LABEL = "10MB";
+
+export function formatFileSize(bytes) {
+  if (bytes == null || Number.isNaN(bytes)) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+export function isFileTooLarge(file, maxBytes = MAX_FILE_BYTES) {
+  return Boolean(file?.size && file.size > maxBytes);
+}
+
+export function getFileSizeError(file, maxBytes = MAX_FILE_BYTES) {
+  if (!file || !isFileTooLarge(file, maxBytes)) return null;
+  return `${file.name} is too large (${formatFileSize(file.size)}). Maximum is ${MAX_FILE_SIZE_LABEL} per file.`;
+}
+
+/** Returns files that exceed the size limit. */
+export function findOversizedFiles(filesMap = {}) {
+  const invalid = [];
+  for (const [fieldname, file] of Object.entries(filesMap)) {
+    if (!file) continue;
+    const message = getFileSizeError(file);
+    if (message) invalid.push({ fieldname, fileName: file.name, message });
+  }
+  return invalid;
+}
+
+const apiBase = () =>
+  process.env.REACT_APP_API_URL ||
+  process.env.REACT_APP_BASE_URL ||
+  "http://localhost:8000";
+
+/** S3 object key stored in MongoDB path field. */
+export const isS3Key = (filePath) => {
+  if (!filePath) return false;
+  const normalized = String(filePath).replace(/\\/g, "/");
+  return !normalized.startsWith("/");
+};
+
+/**
+ * URL for viewing/downloading a file (S3 keys via authenticated API routes).
+ */
+export const getFileURL = (filePath, file) => {
+  if (file?.url) return file.url;
+  if (!filePath || !isS3Key(filePath)) return null;
+
+  const baseURL = apiBase();
+  const normalized = String(filePath).replace(/\\/g, "/");
+
+  const isImage =
+    file?.mimetype?.startsWith("image/") ||
+    /\.(png|jpe?g|gif|webp|svg)$/i.test(normalized);
+  const route = isImage ? "stream" : "access";
+  return `${baseURL}/files/${route}?path=${encodeURIComponent(normalized)}`;
 };
 
 export const isPDF = (file) =>

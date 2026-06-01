@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/auth.controller");
 const { verifyToken } = require("../middleware/VerifyToken");
+const { authLimiter } = require("../middleware/rateLimit");
+
+router.use(authLimiter);
 
 router
   .post("/signup", authController.signup)

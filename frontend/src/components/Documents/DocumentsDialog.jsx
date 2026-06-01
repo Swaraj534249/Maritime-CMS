@@ -1,4 +1,3 @@
-// components/documents/DocumentsDialog.jsx
 import {
   Dialog,
   DialogTitle,
@@ -8,17 +7,16 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DocumentSection from "./DocumentSection";
+import { sectionHasFiles } from "../../utils/documentSections";
 
 const DocumentsDialog = ({
   open,
   onClose,
-  title = "Documents",
+  title = "Files",
   sections = [],
-  emptyMessage = "No documents available",
+  emptyMessage = "No files available",
 }) => {
-  const hasAnyDocs = sections.some(
-    (s) => s.documents?.main?.filename || s.documents?.old?.filename,
-  );
+  const hasAnyFiles = sections.some((s) => sectionHasFiles(s.documents));
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -37,7 +35,7 @@ const DocumentsDialog = ({
           <DocumentSection key={section.key} {...section} />
         ))}
 
-        {!hasAnyDocs && (
+        {!hasAnyFiles && (
           <Typography
             variant="body2"
             color="text.secondary"

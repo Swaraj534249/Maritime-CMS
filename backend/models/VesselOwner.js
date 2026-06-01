@@ -3,6 +3,16 @@ const { Schema } = mongoose;
 
 const vesselOwnerSchema = new Schema(
   {
+    agencyId: {
+      type: Schema.Types.ObjectId,
+      ref: "Agency",
+      index: true,
+    },
+    addedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
     com_id: { type: String, required: false },
     company_shortname: { type: String, required: false },
     company_name: { type: String, required: false },

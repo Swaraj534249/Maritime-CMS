@@ -88,7 +88,7 @@ export const parseResume = async (file) => {
   try {
     const formData = new FormData();
     formData.append("resume", file);
-    
+
     const res = await axiosi.post("/candidates/parse-resume", formData, {
       headers: {
         "Content-Type": "multipart/form-data",

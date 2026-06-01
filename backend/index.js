@@ -1,9 +1,23 @@
-require("dotenv").config();
-const express = require("express");
 const path = require("path");
+
+require("dotenv").config({ path: path.join(__dirname, "env") });
+require("dotenv").config({ path: path.join(__dirname, ".env"), override: true });
+
+if (!process.env.MONGO_URI) {
+  console.error("MONGO_URI is required in backend/.env");
+  process.exit(1);
+}
+if (!process.env.SECRET_KEY) {
+  console.error("SECRET_KEY is required in backend/.env");
+  process.exit(1);
+}
+
+const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const { apiLimiter } = require("./middleware/rateLimit");
+const { isLocalAws, getAwsEndpoint, getSesFromEmail } = require("./aws/env");
 const authRoutes = require("./routes/auth.route");
 const userRoutes = require("./routes/user.route");
 const agencyRoutes = require("./routes/agency.route");
@@ -12,17 +26,16 @@ const agentRoutes = require("./routes/agent.route");
 const vesselOwnerRoutes = require("./routes/vesselOwner.route");
 const vesselRoutes = require("./routes/vessel.route");
 const candidateRoutes = require("./routes/candidate.route");
-const crewingAgentRoutes = require("./routes/crewingAgent.route");
+const filesRoutes = require("./routes/files.route");
+const feedbackRoutes = require("./routes/feedback.route");
 
 const { connectToDB } = require("./database/db");
+const { errorHandler } = require("./middleware/errorHandler");
 
-// server init
 const server = express();
+const PORT = Number(process.env.PORT) || 8000;
 
-// database connection
-connectToDB();
-
-// middlewares
+server.use(apiLimiter);
 server.use(
   cors({
     origin: process.env.ORIGIN,
@@ -35,10 +48,6 @@ server.use(express.json());
 server.use(cookieParser());
 server.use(morgan("tiny"));
 
-// serve uploads
-server.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// routeMiddleware
 server.use("/auth", authRoutes);
 server.use("/users", userRoutes);
 server.use("/agencies", agencyRoutes);
@@ -47,12 +56,30 @@ server.use("/agents", agentRoutes);
 server.use("/vesselOwners", vesselOwnerRoutes);
 server.use("/vessels", vesselRoutes);
 server.use("/candidates", candidateRoutes);
-server.use("/crewingAgents", crewingAgentRoutes);
+server.use("/files", filesRoutes);
+server.use("/feedbacks", feedbackRoutes);
 
 server.get("/", (req, res) => {
   res.status(200).json({ message: "running" });
 });
 
-server.listen(8000, () => {
-  console.log("server [STARTED] ~ http://localhost:8000");
+server.use(errorHandler);
+
+async function start() {
+  await connectToDB();
+  server.listen(PORT, () => {
+    const storage = isLocalAws()
+      ? `LocalStack @ ${getAwsEndpoint()}`
+      : `AWS S3 bucket "${process.env.S3_BUCKET_NAME}" (${process.env.AWS_REGION || "us-east-1"})`;
+    console.log(`server [STARTED] ~ http://localhost:${PORT}`);
+    console.log(`file storage: ${storage}`);
+    console.log(
+      `email: ${process.env.EMAIL_PROVIDER || "ses"} from ${getSesFromEmail()}`,
+    );
+  });
+}
+
+start().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });

@@ -1,5 +1,7 @@
+/** First matching req.body field becomes the S3 subfolder (per entity type). */
 module.exports.UPLOAD_RULES = {
-  vessels: ["vesselname", "imo_Number"],
+  candidates: ["indosNumber"],
   vesselOwners: ["company_shortname", "company_name"],
-  candidates: ["indosNumber", "firstName"],
+  vessels: ["vesselname"],
+  users: ["userId"],
 };

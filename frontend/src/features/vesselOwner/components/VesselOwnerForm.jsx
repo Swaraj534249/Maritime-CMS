@@ -6,6 +6,7 @@ import {
   updateVesselOwnerByIdAsync,
 } from "../../vesselOwner/VesselOwnerSlice";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
+import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
 import { toast } from "react-toastify";
 
 // Validation Schema
@@ -125,9 +126,10 @@ const vesselOwnerFields = [
   },
 ];
 
-const VesselOwnerForm = ({ formId, initialData = {}, onClose }) => {
+const VesselOwnerForm = ({ formId, initialData: initialDataProp = null, onClose }) => {
+  const initialData = initialDataProp ?? {};
   const dispatch = useDispatch();
-  const isEditMode = Boolean(initialData);
+  const isEditMode = Boolean(initialData?._id);
 
   const defaultValues = {
     company_shortname: initialData?.company_shortname || "",
@@ -152,46 +154,59 @@ const VesselOwnerForm = ({ formId, initialData = {}, onClose }) => {
 
   const handleFormSubmit = async (formData, uploadedFiles) => {
     try {
-      const data = new FormData();
-      data.append("uploadFolder", "vesselOwners");
-      // Coerce company_shortname/company_name to single string (use first value if array)
       const companyShort = Array.isArray(formData.company_shortname)
         ? formData.company_shortname[0]
         : formData.company_shortname;
       const companyName = Array.isArray(formData.company_name)
         ? formData.company_name[0]
         : formData.company_name;
-      if (companyShort) data.append("company_shortname", companyShort);
-      if (companyName) data.append("company_name", companyName);
-      Object.keys(formData).forEach((key) => {
-        if (key === "company_shortname" || key === "company_name") return;
-        const val = formData[key];
-        if (val === undefined || val === null) return;
-        const singleVal = Array.isArray(val) ? val[0] : val;
-        data.append(key, singleVal);
-      });
-      if (uploadedFiles.company_logo) {
-        data.append("company_logo", uploadedFiles.company_logo);
-      }
-      if (uploadedFiles.contract) {
-        data.append("contract", uploadedFiles.contract);
-      }
-      if (uploadedFiles.license) {
-        data.append("license", uploadedFiles.license);
-      }
-      // console.log("formData", formData, uploadedFiles);
 
-      if (isEditMode) {
-        data.append("_id", initialData._id);
-        await dispatch(updateVesselOwnerByIdAsync(data)).unwrap();
-        toast.success("Vessel owner updated successfully");
-      } else {
-        await dispatch(createVesselOwnerAsync(data)).unwrap();
-        toast.success("Vessel owner created successfully");
+      if (!companyShort?.trim()) {
+        toast.error("Company short name is required before saving files");
+        return;
       }
+
+      await submitEntityWithFiles({
+        formData,
+        uploadedFiles,
+        uploadFolder: "vesselOwners",
+        uploadFormFields: { company_shortname: companyShort },
+        isEditMode,
+        entityId: initialData?._id,
+        buildFormData: (fd) => {
+          const data = new FormData();
+          data.append("uploadFolder", "vesselOwners");
+          if (companyShort) data.append("company_shortname", companyShort);
+          if (companyName) data.append("company_name", companyName);
+          Object.keys(fd).forEach((key) => {
+            if (key === "company_shortname" || key === "company_name") return;
+            const val = fd[key];
+            if (val === undefined || val === null) return;
+            const singleVal = Array.isArray(val) ? val[0] : val;
+            data.append(key, singleVal);
+          });
+          return data;
+        },
+        create: (data) => dispatch(createVesselOwnerAsync(data)).unwrap(),
+        update: (data) => dispatch(updateVesselOwnerByIdAsync(data)).unwrap(),
+      });
+
+      toast.success(
+        isEditMode
+          ? "Vessel owner updated successfully"
+          : "Vessel owner created successfully",
+      );
       onClose();
     } catch (error) {
       console.error("Form submission error:", error);
+      if (error instanceof EntitySubmitError && error.partialUpload) {
+        toast.warning(
+          `${error.savedFileCount} file(s) saved. Failed: ${error.message}`,
+          { autoClose: 8000 },
+        );
+        onClose();
+        return;
+      }
       toast.error(error?.message || "Failed to save vessel owner");
     }
   };

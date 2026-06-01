@@ -8,8 +8,8 @@ import VesselOwnerSlice from "../features/vesselOwner/VesselOwnerSlice";
 import VesselSlice from "../features/vessel/VesselSlice";
 // import RankSlice from '../features/rank/RankSlice'
 // import CrewSlice from '../features/crew/CrewSlice'
-import CrewingAgentSlice from "../features/crewingAgent/CrewingAgentSlice";
 import CandidateSlice from "../features/candidate/CandidateSlice";
+import FeedbackSlice from "../features/feedback/FeedbackSlice";
 // import ProposeSlice from '../features/propose/ProposeSlice'
 
 export const store = configureStore({
@@ -23,7 +23,7 @@ export const store = configureStore({
     VesselSlice,
     // RankSlice,
     // CrewSlice,
-    CrewingAgentSlice,
     CandidateSlice,
+    FeedbackSlice,
   },
 });

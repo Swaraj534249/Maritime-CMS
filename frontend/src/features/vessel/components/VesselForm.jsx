@@ -4,6 +4,7 @@ import * as yup from "yup";
 import { createVesselAsync, updateVesselByIdAsync } from "../VesselSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
 
 // Validation Schema
 const vesselSchema = yup
@@ -101,39 +102,49 @@ const VesselForm = ({
 
   const handleFormSubmit = async (formData, uploadedFiles) => {
     try {
-      const data = new FormData();
-      data.append("uploadFolder", "vessels");
+      if (!formData.vesselname?.trim()) {
+        toast.error("Vessel name is required before saving files");
+        return;
+      }
 
-      Object.entries(formData).forEach(([key, val]) => {
-        if (val === undefined || val === null || val === "") return;
-        data.append(key, val);
+      await submitEntityWithFiles({
+        formData,
+        uploadedFiles,
+        uploadFolder: "vessels",
+        uploadFormFields: { vesselname: formData.vesselname },
+        isEditMode,
+        entityId: initialData?._id,
+        buildFormData: (fd) => {
+          const data = new FormData();
+          data.append("uploadFolder", "vessels");
+          Object.entries(fd).forEach(([key, val]) => {
+            if (val === undefined || val === null || val === "") return;
+            data.append(key, val);
+          });
+          if (!isEditMode && vesselOwnerId) {
+            data.append("vesselOwner", vesselOwnerId);
+          }
+          return data;
+        },
+        create: (data) => dispatch(createVesselAsync(data)).unwrap(),
+        update: (data) => dispatch(updateVesselByIdAsync(data)).unwrap(),
       });
 
-      if (!isEditMode && vesselOwnerId) {
-        data.append("vesselOwner", vesselOwnerId);
-      }
-
-      if (uploadedFiles?.vessel_image) {
-        data.append("vessel_image", uploadedFiles.vessel_image);
-      }
-
-      if (uploadedFiles.vessel_documents) {
-        data.append("vessel_documents", uploadedFiles.vessel_documents);
-      }
-      console.log("formData", formData, uploadedFiles);
-
-      if (isEditMode) {
-        data.append("_id", initialData._id);
-        await dispatch(updateVesselByIdAsync(data)).unwrap();
-        toast.success("Vessel updated successfully");
-      } else {
-        await dispatch(createVesselAsync(data)).unwrap();
-        toast.success("Vessel created successfully");
-      }
-
+      toast.success(
+        isEditMode ? "Vessel updated successfully" : "Vessel created successfully",
+      );
       onClose();
     } catch (error) {
       console.error("Vessel submit error:", error);
+      if (error instanceof EntitySubmitError && error.partialUpload) {
+        toast.warning(
+          `${error.savedFileCount} file(s) saved. Failed: ${error.message}`,
+          { autoClose: 8000 },
+        );
+        onClose();
+        return;
+      }
+      toast.error(error?.message || "Failed to save vessel");
     }
   };
 

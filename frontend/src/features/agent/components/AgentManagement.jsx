@@ -35,6 +35,8 @@ import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import AgentForm from "./AgentForm";
 import { useRowActions } from "../../../hooks/useRowActions";
+import { usePageTitle } from "../../navigation/PageTitleContext";
+import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 import {
   resetStatuses,
   selectTotalCount,
@@ -52,6 +54,7 @@ import {
   selectCreateStatus,
   selectAgency,
 } from "../AgentSlice";
+import { formatUserTypeLabel } from "../../../utils/formatLabel";
 
 export const AgentManagement = () => {
   const { agencyId } = useParams();
@@ -232,7 +235,7 @@ export const AgentManagement = () => {
     const { userType } = params.row;
     return (
       <Chip
-        label={userType || "N/A"}
+        label={formatUserTypeLabel(userType)}
         size="small"
         variant="outlined"
         color="primary"
@@ -258,24 +261,16 @@ export const AgentManagement = () => {
   };
 
   const renderStatusCell = (params) => {
-    const { isActive, isVerified } = params.row._raw;
+    const status = params.row._raw?.status || "unverified";
+    const config = {
+      active: { label: "Active", color: "success" },
+      inactive: { label: "Inactive", color: "default" },
+      unverified: { label: "Pending password", color: "warning" },
+      verified: { label: "Pending profile", color: "info" },
+    };
+    const { label, color } = config[status] || config.unverified;
     return (
-      <Stack direction="row" spacing={0.5}>
-        <Chip
-          label={isActive ? "Active" : "Inactive"}
-          size="small"
-          color={isActive ? "success" : "default"}
-          variant="filled"
-        />
-        {!isVerified && (
-          <Chip
-            label="Unverified"
-            size="small"
-            color="warning"
-            variant="outlined"
-          />
-        )}
-      </Stack>
+      <Chip label={label} size="small" color={color} variant="filled" />
     );
   };
 
@@ -294,7 +289,7 @@ export const AgentManagement = () => {
     name: agent.name,
     email: agent.email,
     userType: agent.userType,
-    isActive: agent.isActive,
+    status: agent.status,
     _raw: agent,
   }));
 
@@ -350,10 +345,52 @@ export const AgentManagement = () => {
     },
   ];
 
-  const pageTitle = `Agents - ${agencyContext?.name || "Loading..."}`;
+  usePageTitle(
+    isViewingSpecificAgency
+      ? `Agents - ${agencyContext?.name || "Loading..."}`
+      : "",
+  );
 
   return (
     <Stack spacing={2}>
+      <ListPageHeader
+        actions={
+          <>
+            {agencyContext && (
+              <>
+                <Chip
+                  label={`${aggregates?.counts?.total || 0}/${
+                    agencyContext.maxAgents
+                  }`}
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                />
+                <Chip
+                  label={agencyContext.isActive ? "Active" : "Inactive"}
+                  size="small"
+                  color={agencyContext.isActive ? "success" : "default"}
+                />
+              </>
+            )}
+            <Search
+              value={searchValue}
+              onDebouncedChange={(val) => handleSearch(val)}
+              delay={800}
+              placeholder="Search agents..."
+              sx={{ width: { xs: "140px", sm: "220px", md: "280px" } }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleAddNew}
+              sx={{ textTransform: "none" }}
+            >
+              Add Agent
+            </Button>
+          </>
+        }
+      />
       {/* {isViewingSpecificAgency && (
         <Stack direction="row" alignItems="center" spacing={2}>
           <IconButton onClick={handleBack} size="small">
@@ -375,52 +412,6 @@ export const AgentManagement = () => {
           </Breadcrumbs>
         </Stack>
       )} */}
-
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ px: 1 }}
-      >
-        <Typography variant="h6">{pageTitle}</Typography>
-
-        <Stack direction="row" spacing={1} alignItems="center">
-          {agencyContext && (
-            <>
-              <Chip
-                label={`${aggregates?.counts?.total || 0}/${
-                  agencyContext.maxAgents
-                }`}
-                size="small"
-                variant="outlined"
-                color="primary"
-              />
-              <Chip
-                label={agencyContext.isActive ? "Active" : "Inactive"}
-                size="small"
-                color={agencyContext.isActive ? "success" : "default"}
-              />
-            </>
-          )}
-
-          <Search
-            value={searchValue}
-            onDebouncedChange={(val) => handleSearch(val)}
-            delay={800}
-            placeholder="Search agents..."
-            sx={{ width: { xs: "140px", sm: "220px", md: "280px" } }}
-          />
-
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleAddNew}
-            sx={{ textTransform: "none" }}
-          >
-            Add Agent
-          </Button>
-        </Stack>
-      </Stack>
 
       <DataTable
         rows={rows}
@@ -447,20 +438,49 @@ export const AgentManagement = () => {
           </ListItemIcon>
           <ListItemText>Edit</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleToggleStatus}>
-          <ListItemIcon>
-            {agents.find((a) => a._id === selectedRowId)?.isActive ? (
-              <ToggleOffIcon fontSize="small" />
-            ) : (
-              <ToggleOnIcon fontSize="small" />
-            )}
-          </ListItemIcon>
-          <ListItemText>
-            {agents.find((a) => a._id === selectedRowId)?.isActive
-              ? "Deactivate"
-              : "Activate"}
-          </ListItemText>
-        </MenuItem>
+        {(() => {
+          const selectedStatus = agents.find((a) => a._id === selectedRowId)
+            ?.status;
+          const isActive = selectedStatus === "active";
+          const isUnverified = selectedStatus === "unverified";
+          const isVerified = selectedStatus === "verified";
+          const toggleLabel = isActive ? "Deactivate" : "Activate";
+
+          return (
+            <MenuItem
+              onClick={isUnverified || isVerified ? undefined : handleToggleStatus}
+              disabled={isUnverified || isVerified}
+              sx={{
+                "&.Mui-disabled": {
+                  opacity: 0.5,
+                  pointerEvents: "none",
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color:
+                    isUnverified || isVerified ? "action.disabled" : "inherit",
+                  minWidth: 36,
+                }}
+              >
+                {isActive ? (
+                  <ToggleOffIcon fontSize="small" />
+                ) : (
+                  <ToggleOnIcon fontSize="small" />
+                )}
+              </ListItemIcon>
+              <ListItemText
+                sx={{
+                  color:
+                    isUnverified || isVerified ? "text.disabled" : "inherit",
+                }}
+              >
+                {toggleLabel}
+              </ListItemText>
+            </MenuItem>
+          );
+        })()}
         <MenuItem onClick={handleResetPassword}>
           <ListItemIcon>
             <LockResetIcon fontSize="small" />
@@ -517,8 +537,8 @@ export const AgentManagement = () => {
             type="submit"
             form="agent-form"
             variant="contained"
-            loading={createStatus === "pending"}
-            disabled={createStatus === "pending"}
+            loading={createStatus === "pending" || updateStatus === "pending"}
+            disabled={createStatus === "pending" || updateStatus === "pending"}
           >
             {editData ? "Update" : "Create"}
           </LoadingButton>

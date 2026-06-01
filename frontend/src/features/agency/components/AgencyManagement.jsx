@@ -47,6 +47,7 @@ import Search from "../../../components/Search/Search";
 import AgencyForm from "./AgencyForm";
 import { useRowActions } from "../../../hooks/useRowActions";
 import { LoadingButton } from "@mui/lab";
+import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 
 export const AgencyManagement = () => {
   const dispatch = useDispatch();
@@ -369,34 +370,27 @@ export const AgencyManagement = () => {
   return (
     <Stack justifyContent={"center"} alignItems={"center"}>
       <Stack mt={0} mb={0} sx={{ width: "100%" }}>
-        {/* Header */}
-        <Stack
-          mb={1}
-          direction="row"
-          width="100%"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ px: 1 }}
-        >
-          <Typography variant="h6">Agency Management</Typography>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Search
-              value={searchValue}
-              onDebouncedChange={(val) => handleSearch(val)}
-              delay={800}
-              placeholder="Search agencies..."
-              sx={{ width: { xs: "140px", sm: "220px", md: "320px" } }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddNew}
-              sx={{ textTransform: "none" }}
-            >
-              Add Agency
-            </Button>
-          </Stack>
-        </Stack>
+        <ListPageHeader
+          actions={
+            <>
+              <Search
+                value={searchValue}
+                onDebouncedChange={(val) => handleSearch(val)}
+                delay={800}
+                placeholder="Search agencies..."
+                sx={{ width: { xs: "140px", sm: "220px", md: "320px" } }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddNew}
+                sx={{ textTransform: "none" }}
+              >
+                Add Agency
+              </Button>
+            </>
+          }
+        />
 
         {/* Data Table */}
         <DataTable
@@ -478,8 +472,8 @@ export const AgencyManagement = () => {
               type="submit"
               form="agency-form"
               variant="contained"
-              loading={createStatus === "pending"}
-              disabled={createStatus === "pending"}
+              loading={createStatus === "pending" || updateStatus === "pending"}
+              disabled={createStatus === "pending" || updateStatus === "pending"}
             >
               {editData ? "Update" : "Create"}
             </LoadingButton>

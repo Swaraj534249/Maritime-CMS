@@ -6,6 +6,8 @@ const Otp = require("../models/OTP");
 const { sanitizeUser, sanitizeUserForToken } = require("../utils/SanitizeUser");
 const { generateToken } = require("../utils/GenerateToken");
 const PasswordResetToken = require("../models/PasswordResetToken");
+const { STATUS, normalizeStatus, canLogin } = require("../utils/userStatus");
+const { enrichDeep } = require("../aws/s3/fileAccess.service");
 
 // exports.signup = async (req, res) => {
 //   try {
@@ -66,19 +68,46 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const existingUser = await User.findOne({ email: req.body.email });
-    if (
-      existingUser &&
-      (await bcrypt.compare(req.body.password, existingUser.password))
-    ) {
-      if (!existingUser.isActive) {
-        return res.status(403).json({
-          message: "Your account has been deactivated. Please contact your agency admin",
-        });
-      }
+    if (!existingUser) {
+      res.clearCookie("token", {
+        sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
+        httpOnly: true,
+        secure: process.env.PRODUCTION === "true",
+      });
+      return res.status(404).json({ message: "Invalid Credentials" });
+    }
 
+    const status = normalizeStatus(existingUser);
+
+    if (
+      status === STATUS.UNVERIFIED &&
+      existingUser.role !== "SUPER_ADMIN"
+    ) {
+      return res.status(403).json({
+        message:
+          "You have not set your password yet. Please check your email for the setup link.",
+      });
+    }
+
+    if (status === STATUS.INACTIVE) {
+      return res.status(403).json({
+        message:
+          "Your account is deactivated. Please contact your agency administrator.",
+      });
+    }
+
+    const passwordOk = await bcrypt.compare(
+      req.body.password,
+      existingUser.password,
+    );
+      if (
+      passwordOk &&
+      (canLogin(status) || existingUser.role === "SUPER_ADMIN")
+    ) {
+      let agency = null;
       if (existingUser.role !== "SUPER_ADMIN" && existingUser.agencyId) {
         const Agency = require("../models/Agency");
-        const agency = await Agency.findById(existingUser.agencyId);
+        agency = await Agency.findById(existingUser.agencyId);
         
         if (!agency) {
           return res.status(404).json({ message: "Agency not found" });
@@ -101,11 +130,9 @@ exports.login = async (req, res) => {
         lastLoginAt: new Date(),
       });
 
-      const secureInfo = sanitizeUserForToken(existingUser);
-      // generating jwt token
+      const secureInfo = sanitizeUserForToken(existingUser, agency);
       const token = generateToken(secureInfo);
 
-      // sending jwt token in the response cookies
       res.cookie("token", token, {
         sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
         maxAge: parseInt(
@@ -114,10 +141,21 @@ exports.login = async (req, res) => {
         httpOnly: true,
         secure: process.env.PRODUCTION === "true",
       });
-      return res.status(200).json(sanitizeUser(existingUser));
+      const sanitized = sanitizeUser(existingUser, agency);
+      if (agency) {
+        sanitized.agencyName = sanitized.agencyName || agency.name;
+        sanitized.agencyShortName = sanitized.agencyShortName || agency.shortName;
+        sanitized.agencyEmail = sanitized.agencyEmail || agency.email;
+        sanitized.licenseNumber = sanitized.licenseNumber || agency.licenseNumber;
+      }
+      return res.status(200).json(sanitized);
     }
 
-    res.clearCookie("token");
+    res.clearCookie("token", {
+      sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
+      httpOnly: true,
+      secure: process.env.PRODUCTION === "true",
+    });
     return res.status(404).json({ message: "Invalid Credentials" });
   } catch (error) {
     console.log(error);
@@ -163,7 +201,7 @@ exports.verifyOtp = async (req, res) => {
       await Otp.findByIdAndDelete(isOtpExisting._id);
       const verifiedUser = await User.findByIdAndUpdate(
         isValidUserId._id,
-        { isVerified: true },
+        { status: STATUS.ACTIVE },
         { new: true },
       );
       return res.status(200).json(sanitizeUser(verifiedUser));
@@ -312,10 +350,19 @@ exports.resetPassword = async (req, res) => {
       await PasswordResetToken.findByIdAndDelete(isResetTokenExisting._id);
 
       // resets the password after hashing it
+      await Otp.deleteMany({ user: isExistingUser._id });
+      const nextStatus =
+        isExistingUser.role === "AGENT" ? STATUS.VERIFIED : STATUS.ACTIVE;
       await User.findByIdAndUpdate(isExistingUser._id, {
         password: await bcrypt.hash(req.body.password, 10),
+        status: nextStatus,
       });
-      return res.status(200).json({ message: "Password Updated Successfuly" });
+      return res.status(200).json({
+        message:
+          nextStatus === STATUS.VERIFIED
+            ? "Password set. Log in to complete your profile."
+            : "Password Updated Successfuly",
+      });
     }
 
     return res.status(404).json({ message: "Reset Link has been expired" });
@@ -332,11 +379,10 @@ exports.resetPassword = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    res.cookie("token", {
-      maxAge: 0,
+    res.clearCookie("token", {
       sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
       httpOnly: true,
-      secure: process.env.PRODUCTION === "true" ? true : false,
+      secure: process.env.PRODUCTION === "true",
     });
     res.status(200).json({ message: "Logout successful" });
   } catch (error) {
@@ -348,16 +394,33 @@ exports.checkAuth = async (req, res) => {
   try {
     if (req.user) {
       const user = await User.findById(req.user._id)
-        .populate("agencyId", "name email allowedDomains isActive")
+        .populate("agencyId", "name shortName email licenseNumber isActive")
         .select("-password");
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
+      const agency =
+        user.agencyId && typeof user.agencyId === "object"
+          ? user.agencyId
+          : null;
+
+      let sanitized = sanitizeUser(user, agency);
+      if (req.user.agencyName) sanitized.agencyName = sanitized.agencyName || req.user.agencyName;
+      if (req.user.agencyShortName) {
+        sanitized.agencyShortName = sanitized.agencyShortName || req.user.agencyShortName;
+      }
+      if (req.user.agencyEmail) sanitized.agencyEmail = sanitized.agencyEmail || req.user.agencyEmail;
+      if (req.user.licenseNumber) {
+        sanitized.licenseNumber = sanitized.licenseNumber || req.user.licenseNumber;
+      }
+
+      sanitized = await enrichDeep(sanitized);
+
       return res.status(200).json({
-        ...sanitizeUser(user),
-        agency: user.agencyId,
+        ...sanitized,
+        agency,
       });
     }
     res.sendStatus(401);

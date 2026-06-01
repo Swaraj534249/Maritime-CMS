@@ -8,6 +8,11 @@ const agencySchema = new Schema(
       required: true,
       trim: true,
     },
+    shortName: {
+      type: String,
+      trim: true,
+      sparse: true,
+    },
     email: {
       type: String,
       required: true,
@@ -54,6 +59,10 @@ const agencySchema = new Schema(
     maxAgents: {
       type: Number,
       default: 5, // limit based on subscription
+    },
+    feedbackCounter: {
+      type: Number,
+      default: 0,
     },
   },
   {

@@ -16,10 +16,13 @@ import {
   Box,
   Typography,
   Chip,
+  Divider,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ImageIcon from "@mui/icons-material/Image";
+import { toast } from "react-toastify";
+import { getFileSizeError, formatFileSize } from "../../utils/fileUtils";
 
 /**
  * Dynamic Form Builder Component with File Upload Support
@@ -41,6 +44,7 @@ const DynamicFormBuilder = ({
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
@@ -49,41 +53,65 @@ const DynamicFormBuilder = ({
 
   // Local state for file uploads
   const [uploadedFiles, setUploadedFiles] = useState({});
+  /** Bump to remount hidden file inputs so re-selecting the same file fires onChange */
+  const [fileInputKeys, setFileInputKeys] = useState({});
 
   const handleFileChange = async (fieldName, files, multiple = false) => {
+    const picked = Array.from(files || []);
+    if (!picked.length) return;
+
+    const accepted = [];
+    for (const file of picked) {
+      const sizeError = getFileSizeError(file);
+      if (sizeError) {
+        toast.error(sizeError);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (!accepted.length) return;
+
     if (multiple) {
       const existingFiles = uploadedFiles[fieldName] || [];
       setUploadedFiles((prev) => ({
         ...prev,
-        [fieldName]: [...existingFiles, ...Array.from(files)],
+        [fieldName]: [...existingFiles, ...accepted],
       }));
     } else {
-      const file = files[0] || null;
+      const file = accepted[0];
       setUploadedFiles((prev) => ({
         ...prev,
         [fieldName]: file,
       }));
 
       if (fieldName === "resume" && file && onResumeUpload) {
-        await onResumeUpload(file, setValue);
+        await onResumeUpload(file, setValue, getValues());
       }
     }
   };
 
+  const resetFileInput = (fieldName) => {
+    setFileInputKeys((prev) => ({
+      ...prev,
+      [fieldName]: (prev[fieldName] || 0) + 1,
+    }));
+    const el = document.getElementById(`file-upload-${fieldName}`);
+    if (el) el.value = "";
+  };
+
   const removeFile = (fieldName, index = null) => {
     if (index !== null) {
-      // Remove specific file from array
       setUploadedFiles((prev) => ({
         ...prev,
         [fieldName]: prev[fieldName].filter((_, i) => i !== index),
       }));
     } else {
-      // Remove single file
       setUploadedFiles((prev) => ({
         ...prev,
         [fieldName]: null,
       }));
     }
+    resetFileInput(fieldName);
   };
 
   const handleFormSubmit = (data) => {
@@ -98,6 +126,7 @@ const DynamicFormBuilder = ({
     return (
       <Box>
         <input
+          key={`file-upload-${name}-${fileInputKeys[name] || 0}`}
           accept={accept}
           style={{ display: "none" }}
           id={`file-upload-${name}`}
@@ -154,7 +183,7 @@ const DynamicFormBuilder = ({
                     <InsertDriveFileIcon />
                   )
                 }
-                label={`${file.name} (${(file.size / 1024).toFixed(2)} KB)`}
+                label={`${file.name} (${formatFileSize(file.size)})`}
                 onDelete={() => removeFile(name, multiple ? idx : null)}
                 size="small"
                 color="primary"
@@ -241,7 +270,29 @@ const DynamicFormBuilder = ({
       disabled = false,
       placeholder,
       helperText,
+      title,
+      description,
     } = field;
+
+    if (type === "section") {
+      return (
+        <Grid item xs={12} key={name || title}>
+          {name !== "_section_agency" && <Divider sx={{ mb: 2 }} />}
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+            {title}
+          </Typography>
+          {description && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 1.5 }}
+            >
+              {description}
+            </Typography>
+          )}
+        </Grid>
+      );
+    }
 
     // Handle file upload type
     if (type === "file") {

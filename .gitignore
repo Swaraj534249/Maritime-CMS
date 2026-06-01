@@ -5,19 +5,16 @@ node_modules/
 .env
 .env.*
 !.env.example
-
 ####################################
 # Backend
 ####################################
 backend/node_modules/
 backend/.env
+backend/env
 backend/.env.*
 !backend/.env.example
 
-# Uploads (keep folder, ignore files)
 backend/seed/
-backend/uploads/*
-!backend/uploads/.gitkeep
 
 # Logs / temp
 backend/logs/*

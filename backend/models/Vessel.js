@@ -3,6 +3,16 @@ const { Schema } = mongoose;
 
 const vesselSchema = new Schema(
   {
+    agencyId: {
+      type: Schema.Types.ObjectId,
+      ref: "Agency",
+      index: true,
+    },
+    addedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
     vesselOwner: {
       type: Schema.Types.ObjectId,
       ref: "VesselOwner",

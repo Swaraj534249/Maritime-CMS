@@ -9,27 +9,34 @@ import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
 import { Link } from "react-router-dom";
 import {
-  Button,
   Stack,
   ListItemIcon,
   ListItemText,
-  useTheme,
-  useMediaQuery,
+  Button,
+  Box,
 } from "@mui/material";
 import { useSelector } from "react-redux";
-import { selectUserInfo } from "../../user/UserSlice";
-import { selectLoggedInUser } from "../../auth/AuthSlice";
-import HomeIcon from "@mui/icons-material/Home";
-import ArticleIcon from "@mui/icons-material/Article";
+import {
+  selectLoggedInUser,
+  selectUserRole,
+} from "../../auth/AuthSlice";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import WorkIcon from "@mui/icons-material/Work";
-import { Sidebar } from "./Sidebar";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
+import MenuIcon from "@mui/icons-material/Menu";
+import { FeedbackForm } from "../../feedback/components/FeedbackForm";
 
-export const Navbar = ({ isProductList = false }) => {
+export const Navbar = ({ sidebarWidth, onMenuToggle }) => {
   const [anchorElUser, setAnchorElUser] = React.useState(null);
-  // const userInfo = useSelector(selectUserInfo);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
   const loggedInUser = useSelector(selectLoggedInUser);
-  const theme = useTheme();
-  const is480 = useMediaQuery(theme.breakpoints.down(480));
+  const userRole = useSelector(selectUserRole);
+  const canSubmitFeedback =
+    userRole === "AGENCY_ADMIN" || userRole === "AGENT";
+
+  const showOurFeedbacks =
+    userRole === "AGENCY_ADMIN" || userRole === "AGENT";
 
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
@@ -39,17 +46,20 @@ export const Navbar = ({ isProductList = false }) => {
   };
 
   const settings = [
-    { name: "Home", to: "/", icon: <HomeIcon fontSize="small" /> },
     {
       name: "Profile",
-      to: loggedInUser?.isAdmin ? "/admin/profile" : "/profile",
-      icon: <HomeIcon fontSize="small" />,
+      to: "/profile",
+      icon: <PersonOutlineIcon fontSize="small" />,
     },
-    {
-      name: loggedInUser?.isAdmin ? "Orders" : "My orders",
-      to: loggedInUser?.isAdmin ? "/admin/orders" : "/orders",
-      icon: <ArticleIcon fontSize="small" />,
-    },
+    ...(showOurFeedbacks
+      ? [
+          {
+            name: "Our Feedbacks",
+            to: "/feedbacks",
+            icon: <FeedbackOutlinedIcon fontSize="small" />,
+          },
+        ]
+      : []),
     { name: "Logout", to: "/logout", icon: <WorkIcon fontSize="small" /> },
   ];
 
@@ -59,87 +69,91 @@ export const Navbar = ({ isProductList = false }) => {
         .map((n) => n[0])
         .slice(0, 2)
         .join("")
-    : "SD";
+    : "U";
 
   return (
-    // AppBar only — layout (sidebar + main) will be composed at a higher level
-    <AppBar
-      position="fixed"
-      sx={{
-        backgroundColor: "black",
-        color: "white",
-        boxShadow: "none",
-        zIndex: (theme) => theme.zIndex.drawer + 1, // keep above sidebar
-      }}
-    >
-      <Toolbar sx={{ p: 1, display: "flex", justifyContent: "space-between" }}>
-        <Typography
-          variant="h6"
-          noWrap
-          component={Link}
-          to="/"
-          sx={{
-            mr: 2,
-            fontWeight: 700,
-            letterSpacing: ".3rem",
-            color: "inherit",
-            textDecoration: "none",
-          }}
-        >
-          BSM
-        </Typography>
-
-        <Stack direction="row" spacing={2} alignItems="center">
-          {loggedInUser?.isAdmin && (
-            <Button
-              variant="contained"
+    <>
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          left: sidebarWidth,
+          width: `calc(100% - ${sidebarWidth}px)`,
+          bgcolor: "#fff",
+          color: "text.primary",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+        }}
+      >
+        <Toolbar sx={{ minHeight: 64, px: 2, position: "relative" }}>
+          <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, zIndex: 1 }}>
+            <IconButton
+              edge="start"
               color="inherit"
-              sx={{
-                bgcolor: "transparent",
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.2)",
-              }}
+              aria-label="toggle sidebar"
+              onClick={onMenuToggle}
             >
-              Admin
-            </Button>
-          )}
-          <Tooltip title="Open Settings">
-            <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-              <Avatar alt={loggedInUser?.name} sx={{ bgcolor: "#1976d2" }}>
-                {avatarLabel}
-              </Avatar>
+              <MenuIcon />
             </IconButton>
-          </Tooltip>
-          <Menu
-            sx={{ mt: "45px" }}
-            id="menu-appbar"
-            anchorEl={anchorElUser}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            open={Boolean(anchorElUser)}
-            onClose={handleCloseUserMenu}
-          >
-            {settings.map((s) => (
-              <MenuItem
-                key={s.name}
-                onClick={handleCloseUserMenu}
-                component={Link}
-                to={s.to}
-              >
-                <ListItemIcon sx={{ minWidth: 32 }}>{s.icon}</ListItemIcon>
-                <ListItemText>{s.name}</ListItemText>
-              </MenuItem>
-            ))}
-          </Menu>
-        </Stack>
-      </Toolbar>
-    </AppBar>
+          </Box>
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ zIndex: 1 }}>
+            {canSubmitFeedback && (
+              <Tooltip title="Submit feedback">
+                <Button
+                  color="inherit"
+                  startIcon={<RateReviewOutlinedIcon />}
+                  onClick={() => setFeedbackOpen(true)}
+                  sx={{ textTransform: "none" }}
+                >
+                  Feedback
+                </Button>
+              </Tooltip>
+            )}
+
+            <Tooltip title="Account">
+              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                <Avatar
+                  alt={loggedInUser?.name}
+                  sx={{ bgcolor: "#1976d2", width: 36, height: 36 }}
+                >
+                  {avatarLabel}
+                </Avatar>
+              </IconButton>
+            </Tooltip>
+            <Menu
+              sx={{ mt: "45px" }}
+              anchorEl={anchorElUser}
+              anchorOrigin={{ vertical: "top", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              open={Boolean(anchorElUser)}
+              onClose={handleCloseUserMenu}
+            >
+              {settings.map((s) => (
+                <MenuItem
+                  key={s.name}
+                  onClick={handleCloseUserMenu}
+                  component={Link}
+                  to={s.to}
+                >
+                  <ListItemIcon sx={{ minWidth: 32 }}>{s.icon}</ListItemIcon>
+                  <ListItemText>{s.name}</ListItemText>
+                </MenuItem>
+              ))}
+            </Menu>
+          </Stack>
+        </Toolbar>
+      </AppBar>
+
+      {canSubmitFeedback && (
+        <FeedbackForm
+          open={feedbackOpen}
+          onClose={() => setFeedbackOpen(false)}
+        />
+      )}
+    </>
   );
 };

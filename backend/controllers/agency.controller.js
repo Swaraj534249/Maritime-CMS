@@ -5,25 +5,30 @@ const { sanitizeUser } = require("../utils/SanitizeUser");
 const { buildListQuery } = require("../utils/ListQueryBuilder");
 const { buildListResponse } = require("../utils/ListResponseBuilder");
 const { sendMail } = require("../utils/Emails");
+const { hashPlaceholderPassword } = require("../utils/placeholderPassword");
+const { STATUS } = require("../utils/userStatus");
+const {
+  prepareAndQueueAgencyAdminWelcome,
+} = require("../services/email/emailNotification.service");
 
 exports.create = async (req, res) => {
   try {
-    const { 
-      name, 
-      email, 
-      contactPerson, 
-      phone, 
-      address, 
-      licenseNumber, 
-      subscriptionPlan, 
-      maxAgents, 
-      password, 
-      industryType
+    const {
+      name,
+      shortName,
+      email,
+      contactPerson,
+      phone,
+      address,
+      licenseNumber,
+      subscriptionPlan,
+      maxAgents,
+      industryType,
     } = req.body;
 
-    if (!name || !email || !contactPerson || !phone || !password) {
+    if (!name || !email || !contactPerson || !phone) {
       return res.status(400).json({
-        message: "Name, email, contact person, phone, and password are required",
+        message: "Name, email, contact person, and phone are required",
       });
     }
 
@@ -57,6 +62,7 @@ exports.create = async (req, res) => {
     // Create agency
     const newAgency = new Agency({
       name,
+      shortName: shortName?.trim() || undefined,
       email,
       contactPerson,
       phone,
@@ -68,18 +74,15 @@ exports.create = async (req, res) => {
     });
     await newAgency.save();
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const adminUserData = {
       name: contactPerson,
       email,
-      password: hashedPassword,
+      password: await hashPlaceholderPassword(),
       role: "AGENCY_ADMIN",
       agencyId: newAgency._id,
       industryType,
       userType: "manager",
-      isVerified: false,
+      status: STATUS.UNVERIFIED,
     };
 
     if (req.user && req.user._id) {
@@ -90,62 +93,14 @@ exports.create = async (req, res) => {
     await adminUser.save();
 
     try {
-      const loginUrl = `${process.env.ORIGIN}/login`;
-      
-      await sendMail(
-        email,
-        "Welcome - Your Agency Admin Account Details",
-        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Welcome to Our Platform!</h2>
-          
-          <p>Hello ${contactPerson},</p>
-          
-          <p>Your agency <strong>${name}</strong> has been successfully registered, and your admin account has been created.</p>
-          
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="margin-top: 0;">Agency Details:</h3>
-            <p style="margin: 10px 0;"><strong>Agency Name:</strong> ${name}</p>
-            <p style="margin: 10px 0;"><strong>Industry Type:</strong> ${industryType}</p>
-            <p style="margin: 10px 0;"><strong>User Role:</strong> Manager</p>
-            <p style="margin: 10px 0;"><strong>Subscription Plan:</strong> ${subscriptionPlan || "basic"}</p>
-            <p style="margin: 10px 0;"><strong>Max Agents Allowed:</strong> ${maxAgents || 5}</p>
-          </div>
-          
-          <div style="background-color: #e3f2fd; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="margin-top: 0;">Your Admin Login Credentials:</h3>
-            <p style="margin: 10px 0;"><strong>Email:</strong> ${email}</p>
-            <p style="margin: 10px 0;"><strong>Password:</strong> ${password}</p>
-            <p style="margin: 10px 0;"><strong>Login URL:</strong> <a href="${loginUrl}" style="color: #007bff;">${loginUrl}</a></p>
-          </div>
-          
-          <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
-            <p style="margin: 0;"><strong>⚠️ Next Steps:</strong></p>
-            <ol style="margin: 10px 0; padding-left: 20px;">
-              <li>Click the login link above or copy it to your browser</li>
-              <li>Login using your email and password</li>
-              <li>You'll be asked to verify your email with an OTP</li>
-              <li>After verification, you can create and manage agents</li>
-              <li>You can change your password anytime in your profile</li>
-            </ol>
-          </div>
-          
-          <div style="background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
-            <p style="margin: 0;"><strong>✨ What You Can Do:</strong></p>
-            <ul style="margin: 10px 0; padding-left: 20px;">
-              <li>Create and manage up to ${maxAgents || 5} agents</li>
-              <li>Monitor your agents' activities</li>
-              <li>Manage agency settings and preferences</li>
-            </ul>
-          </div>
-          
-          <p>If you have any questions or need assistance, please contact our support team.</p>
-          
-          <p style="margin-top: 30px;">Best regards,<br><strong>Platform Administration Team</strong></p>
-          
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-          <p style="color: #888; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
-        </div>`
-      );
+      await prepareAndQueueAgencyAdminWelcome({
+        user: adminUser,
+        agencyName: name,
+        industryType,
+        subscriptionPlan: subscriptionPlan || "basic",
+        maxAgents: maxAgents || 5,
+        contactPerson,
+      });
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
     }
@@ -435,7 +390,12 @@ exports.toggleStatus = async (req, res) => {
     agency.isActive = !agency.isActive;
     await agency.save();
 
-    await User.updateMany({ agencyId: agency._id }, { isActive: agency.isActive });
+    if (!agency.isActive) {
+      await User.updateMany(
+        { agencyId: agency._id },
+        { $set: { status: STATUS.INACTIVE } },
+      );
+    }
 
     res.json(agency);
   } catch (error) {

@@ -5,24 +5,14 @@ import { createAgentAsync, updateAgentByIdAsync } from "../AgentSlice";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import { toast } from "react-toastify";
 
-// Validation Schema
 const agentSchema = yup
   .object({
     name: yup.string().required("Name is required"),
     email: yup.string().email("Invalid email").required("Email is required"),
-    password: yup.string().when("$isEditMode", {
-      is: false,
-      then: (schema) =>
-        schema
-          .required("Password is required")
-          .min(6, "Password must be at least 6 characters"),
-      otherwise: (schema) => schema.notRequired(),
-    }),
     userType: yup.string(),
   })
   .required();
 
-// Field Configuration
 const getAgentFields = (isEditMode) => [
   {
     name: "name",
@@ -35,59 +25,43 @@ const getAgentFields = (isEditMode) => [
     label: "Email",
     type: "email",
     gridSize: { xs: 12 },
-    disabled: isEditMode, // Disable email editing
+    disabled: isEditMode,
   },
-  ...(isEditMode
-    ? [] // Don't show password field in edit mode
-    : [
-        {
-          name: "password",
-          label: "Password",
-          type: "password",
-          gridSize: { xs: 12 },
-          helperText: "Minimum 6 characters",
-        },
-      ]),
   {
     name: "userType",
     label: "User Type",
     type: "select",
     gridSize: { xs: 12 },
-    options: ["Crew", "Crewing Agent", "Vessel Owner", "Vessel Manager"],
+    options: ["Sourcing", "Documentation", "Accounts"],
   },
 ];
 
-const AgentForm = ({ formId, initialData = null, onClose }) => {
+const AgentForm = ({ formId, initialData: initialDataProp = null, onClose }) => {
   const dispatch = useDispatch();
-  const isEditMode = Boolean(initialData);
+  const initialData = initialDataProp ?? {};
+  const isEditMode = Boolean(initialData?._id);
 
   const defaultValues = {
     name: initialData?.name || "",
     email: initialData?.email || "",
-    password: "",
     userType: initialData?.userType || "",
   };
 
   const handleFormSubmit = async (formData) => {
     try {
-      const data = { ...formData };
-
-      // Remove password field if in edit mode and it's empty
-      if (isEditMode && !data.password) {
-        delete data.password;
-      }
-
       if (isEditMode) {
         await dispatch(
           updateAgentByIdAsync({
             id: initialData._id,
-            data,
+            data: formData,
           }),
         ).unwrap();
         toast.success("Agent updated successfully");
       } else {
-        await dispatch(createAgentAsync(data)).unwrap();
-        toast.success("Agent created successfully");
+        await dispatch(createAgentAsync(formData)).unwrap();
+        toast.success(
+          "Agent created. They will receive an email to set their password.",
+        );
       }
       onClose();
     } catch (error) {
@@ -105,7 +79,6 @@ const AgentForm = ({ formId, initialData = null, onClose }) => {
       onSubmit={handleFormSubmit}
       onCancel={onClose}
       isEditMode={isEditMode}
-      context={{ isEditMode }} // Pass context for conditional validation
     />
   );
 };

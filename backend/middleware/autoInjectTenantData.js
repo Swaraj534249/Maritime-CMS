@@ -25,17 +25,6 @@ exports.autoInjectTenantData = (options = {}) => {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      console.log('🔧 Auto-Inject Tenant Data - Before:', {
-        method: req.method,
-        body: req.body,
-        user: {
-          _id: req.user._id,
-          role: req.user.role,
-          agencyId: req.user.agencyId,
-          industryType: req.user.industryType,
-        },
-      });
-
       // Inject agencyId (if user has one and not already set or override allowed)
       if (includeAgencyId && req.user.agencyId) {
         if (!req.body.agencyId || allowOverride === false) {
@@ -56,12 +45,6 @@ exports.autoInjectTenantData = (options = {}) => {
           req.body.industryType = req.user.industryType;
         }
       }
-
-      console.log('✅ Auto-Inject Tenant Data - After:', {
-        agencyId: req.body.agencyId || 'Not injected',
-        createdBy: req.body.createdBy || 'Not injected',
-        industryType: req.body.industryType || 'Not injected',
-      });
 
       next();
     } catch (error) {

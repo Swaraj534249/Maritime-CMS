@@ -1,14 +1,7 @@
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 const { UPLOAD_RULES } = require("./uploadRules");
-
-const createDirectory = (dirPath) => {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-    console.log(`Created directory: ${dirPath}`);
-  }
-};
+const { deleteObject } = require("../aws/s3/storage.service");
+const { isS3ObjectKey } = require("../utils/fileRef");
+const multer = require("multer");
 
 const coerceToString = (value) => {
   if (value === undefined || value === null) return "";
@@ -27,93 +20,87 @@ const sanitizeFolderName = (name) => {
   return s.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 };
 
-// Dynamic storage configuration
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const rawFolder = coerceToString(req.body.uploadFolder) || "default";
-    const folderName = sanitizeFolderName(rawFolder);
+/** S3 tenant folder from agency labels (short name preferred). */
+function tenantKeyFromAgencyFields({ shortName, name } = {}) {
+  const raw = coerceToString(shortName).trim() || coerceToString(name).trim();
+  if (!raw) return "";
+  return sanitizeFolderName(raw);
+}
 
-    const rules =
-      UPLOAD_RULES[folderName] ||
-      UPLOAD_RULES[
-        Object.keys(UPLOAD_RULES).find(
-          (key) => key.toLowerCase() === folderName,
-        )
-      ] ||
-      [];
+/** Tenant segment for S3 keys — JWT agencyShortName, else agencyName. */
+function resolveTenantKeyForUpload(req) {
+  return tenantKeyFromAgencyFields({
+    shortName: req.user?.agencyShortName,
+    name: req.user?.agencyName,
+  });
+}
 
-    let rawSubFolderValue = "unknown";
+/** S3 key prefix: {agencyShortName|agencyName}/{entityType}/{businessKey}/ */
+function resolveUploadInfo(req) {
+  const tenantKey = resolveTenantKeyForUpload(req);
+  const rawFolder = coerceToString(req.body?.uploadFolder) || "default";
+  const folderName = sanitizeFolderName(rawFolder);
 
-    for (const field of rules) {
-      const value = coerceToString(req.body[field]);
+  const rules =
+    UPLOAD_RULES[folderName] ||
+    UPLOAD_RULES[
+      Object.keys(UPLOAD_RULES).find(
+        (key) => key.toLowerCase() === folderName,
+      )
+    ] ||
+    [];
 
-      if (value) {
-        rawSubFolderValue = value;
-        break;
-      }
+  let rawSubFolderValue = "unknown";
+  for (const field of rules) {
+    const value = coerceToString(req.body?.[field]);
+    if (value) {
+      rawSubFolderValue = value;
+      break;
     }
-
-    const subFolderName = sanitizeFolderName(rawSubFolderValue);
-
-    const uploadDir = path.join(
-      __dirname,
-      "..",
-      "uploads",
-      folderName,
-      subFolderName,
-    );
-
-    createDirectory(uploadDir);
-
-    req._uploadInfo = { folderName, subFolderName, uploadDir };
-
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    const nameWithoutExt = path.basename(file.originalname, ext);
-    const sanitizedName = nameWithoutExt
-      .replace(/[^a-zA-Z0-9]/g, "-")
-      .toLowerCase();
-    cb(null, `${file.fieldname}-${uniqueSuffix}-${sanitizedName}${ext}`);
-  },
-});
-
-// File filter for validation
-const fileFilter = (req, file, cb) => {
-  // Allowed file types
-  const allowedMimes = {
-    "image/png": true,
-    "image/jpeg": true,
-    "image/jpg": true,
-    "application/pdf": true,
-    "application/msword": true,
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
-    "application/vnd.ms-excel": true,
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
-  };
-
-  if (allowedMimes[file.mimetype]) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error(
-        `Invalid file type: ${file.mimetype}. Only PDF, Word, Excel, PNG, JPG, JPEG allowed`,
-      ),
-      false,
-    );
   }
-};
 
-// Configure multer
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 10 * 1024 * 1024,
+  const subFolderName = sanitizeFolderName(rawSubFolderValue);
+  return { tenantKey, folderName, subFolderName };
+}
+
+function buildStoredFilename(req, file) {
+  if (!req._uploadInfo) {
+    req._uploadInfo = resolveUploadInfo(req);
+  }
+  const path = require("path");
+  const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+  const ext = path.extname(file.originalname);
+  const nameWithoutExt = path.basename(file.originalname, ext);
+  const sanitizedName = nameWithoutExt
+    .replace(/[^a-zA-Z0-9]/g, "-")
+    .toLowerCase();
+  return `${file.fieldname}-${uniqueSuffix}-${sanitizedName}${ext}`;
+}
+
+const memoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = {
+      "application/pdf": true,
+      "application/msword": true,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+    };
+    if (allowed[file.mimetype]) cb(null, true);
+    else cb(new Error("Resume must be PDF, DOC, or DOCX"), false);
   },
 });
+
+const parseFormFields = multer().none();
+
+const parseResumeUpload = memoryUpload.single("resume");
+
+const fileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+const uploadSingleFile = fileUpload.single("file");
 
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -122,63 +109,32 @@ const handleMulterError = (err, req, res, next) => {
         message: "File too large. Maximum size is 10MB per file",
       });
     }
-    if (err.code === "LIMIT_UNEXPECTED_FILE") {
-      return res.status(400).json({
-        message: "Too many files or unexpected field name",
-      });
-    }
     return res.status(400).json({ message: err.message });
   }
-
-  if (err) {
-    return res.status(400).json({ message: err.message });
-  }
-
+  if (err) return res.status(400).json({ message: err.message });
   next();
 };
 
+async function deleteFile(filePath) {
+  if (!filePath || !isS3ObjectKey(filePath)) return false;
+  try {
+    await deleteObject(filePath);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting S3 object: ${filePath}`, error);
+    return false;
+  }
+}
+
 module.exports = {
-  uploadVesselOwnerFiles: upload.fields([
-    { name: "company_logo", maxCount: 1 },
-    { name: "contract", maxCount: 1 },
-    { name: "license", maxCount: 1 },
-  ]),
-
-  uploadVesselFiles: upload.fields([
-    { name: "vessel_image", maxCount: 1 },
-    { name: "vessel_documents", maxCount: 10 },
-  ]),
-
-  uploadCandidateFiles : upload.fields([
-  { name: "photo", maxCount: 1 },
-  { name: "passport", maxCount: 1 },
-  { name: "cdc", maxCount: 1 },
-  { name: "indos", maxCount: 1 },
-  { name: "visa", maxCount: 1 },
-  { name: "aadhar", maxCount: 1 },
-  { name: "pan", maxCount: 1 },
-  { name: "medicalCertificate", maxCount: 1 },
-  { name: "seamanBook", maxCount: 1 },
-  { name: "resume", maxCount: 1 },
-]),
-
-  uploadSingle: (fieldName = "file") => upload.single(fieldName),
-  uploadMultiple: (fieldName = "files", maxCount = 10) =>
-    upload.array(fieldName, maxCount),
-  uploadFields: (fields) => upload.fields(fields),
+  resolveTenantKeyForUpload,
+  tenantKeyFromAgencyFields,
+  sanitizeFolderName,
+  resolveUploadInfo,
+  buildStoredFilename,
+  parseFormFields,
+  parseResumeUpload,
+  uploadSingleFile,
   handleMulterError,
-
-  deleteFile: (filePath) => {
-    try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log(`Deleted file: ${filePath}`);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error(`Error deleting file: ${filePath}`, error);
-      return false;
-    }
-  },
+  deleteFile,
 };

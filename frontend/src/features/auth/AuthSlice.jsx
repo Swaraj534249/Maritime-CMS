@@ -147,6 +147,13 @@ const authSlice = createSlice({
     clearResetPasswordError: (state) => {
       state.resetPasswordError = null;
     },
+    setLoggedInUser: (state, action) => {
+      if (!state.loggedInUser) {
+        state.loggedInUser = action.payload;
+        return;
+      }
+      state.loggedInUser = { ...state.loggedInUser, ...action.payload };
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -285,6 +292,14 @@ export const selectResetPasswordError = (state) =>
 export const selectUserRole = (state) => state.AuthSlice.loggedInUser?.role;
 export const selectUserAgencyId = (state) =>
   state.AuthSlice.loggedInUser?.agencyId;
+export const selectAgencyName = (state) =>
+  state.AuthSlice.loggedInUser?.agencyName;
+export const selectAgencyShortName = (state) =>
+  state.AuthSlice.loggedInUser?.agencyShortName;
+export const selectAgencyEmail = (state) =>
+  state.AuthSlice.loggedInUser?.agencyEmail;
+export const selectLicenseNumber = (state) =>
+  state.AuthSlice.loggedInUser?.licenseNumber;
 export const selectUserAgency = (state) => state.AuthSlice.loggedInUser?.agency;
 export const selectHasRole = (roles) => (state) => {
   const userRole = state.AuthSlice.loggedInUser?.role;
@@ -311,6 +326,7 @@ export const {
   clearResetPasswordError,
   clearResetPasswordSuccessMessage,
   resetResetPasswordStatus,
+  setLoggedInUser,
 } = authSlice.actions;
 
 export default authSlice.reducer;

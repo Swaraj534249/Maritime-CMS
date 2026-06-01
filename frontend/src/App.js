@@ -14,7 +14,6 @@ import {
 import { Logout } from "./features/auth/components/Logout";
 import { Protected } from "./features/auth/components/Protected";
 import { useAuthCheck } from "./hooks/useAuth/useAuthCheck";
-import { useFetchLoggedInUserDetails } from "./hooks/useAuth/useFetchLoggedInUserDetails";
 import {
   ForgotPasswordPage,
   HomePage,
@@ -28,12 +27,14 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { Child } from "./pages/Child";
 import { RootLayout } from "./layout/RootLayout";
 import { VesselOwnerPage } from "./pages/VesselOwnerPage";
-import { CrewingAgentPage } from "./pages/CrewingAgentPage";
 import { VesselPage } from "./pages/VesselPage";
 import { AgentManagementPage } from "./pages/AgentManagementPage";
 import { AgencyManagementPage } from "./pages/AgencyManagementPage";
 import { CandidatesPage } from "./pages/CandidatesPage";
 import { CandidatesFormPage } from "./pages/CandidatesFormPage";
+import { FeedbacksPage } from "./pages/FeedbacksPage";
+import { AgentOnboardingPage } from "./pages/AgentOnboardingPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import {
   AgencyAdminProtected,
   SuperAdminProtected,
@@ -46,7 +47,6 @@ function App() {
   const userRole = useSelector(selectUserRole);
 
   useAuthCheck();
-  useFetchLoggedInUserDetails(loggedInUser);
 
   const routes = createBrowserRouter(
     createRoutesFromElements(
@@ -82,7 +82,7 @@ function App() {
             <>
               <Route
                 path="/"
-                element={<Navigate to="/super-admin/agencies" replace />}
+                element={<Navigate to="/dashboard" replace />}
               />
               <Route
                 path="/super-admin/dashboard"
@@ -109,6 +109,14 @@ function App() {
                   </SuperAdminProtected>
                 }
               />
+              <Route
+                path="/super-admin/feedbacks"
+                element={
+                  <SuperAdminProtected>
+                    <FeedbacksPage />
+                  </SuperAdminProtected>
+                }
+              />
             </>
           )}
 
@@ -116,7 +124,7 @@ function App() {
             <>
               <Route
                 path="/"
-                element={<Navigate to="/agency/agents" replace />}
+                element={<Navigate to="/dashboard" replace />}
               />
               <Route
                 path="/agency/dashboard"
@@ -151,14 +159,6 @@ function App() {
                 }
               />
               <Route
-                path="/crewing-agents"
-                element={
-                  <AgencyAdminProtected>
-                    <CrewingAgentPage />
-                  </AgencyAdminProtected>
-                }
-              />
-              <Route
                 path="/candidates"
                 element={
                   <AgencyAdminProtected>
@@ -182,13 +182,27 @@ function App() {
                   </AgencyAdminProtected>
                 }
               />
+              <Route
+                path="/feedbacks"
+                element={
+                  <AgencyAdminProtected>
+                    <FeedbacksPage />
+                  </AgencyAdminProtected>
+                }
+              />
             </>
           )}
 
           {userRole === "AGENT" && (
             <>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/profile" element={<UserProfilePage />} />
+              <Route
+                path="/"
+                element={<Navigate to="/dashboard" replace />}
+              />
+              <Route
+                path="/agent/onboarding"
+                element={<AgentOnboardingPage />}
+              />
               <Route
                 path="/vessel-owners"
                 element={
@@ -202,14 +216,6 @@ function App() {
                 element={
                   <AgentProtected>
                     <VesselPage />
-                  </AgentProtected>
-                }
-              />
-              <Route
-                path="/crewing-agents"
-                element={
-                  <AgentProtected>
-                    <CrewingAgentPage />
                   </AgentProtected>
                 }
               />
@@ -239,9 +245,18 @@ function App() {
                   </AgentProtected>
                 }
               />
+              <Route
+                path="/feedbacks"
+                element={
+                  <AgentProtected>
+                    <FeedbacksPage />
+                  </AgentProtected>
+                }
+              />
             </>
           )}
 
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<UserProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

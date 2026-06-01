@@ -5,11 +5,17 @@ import { createAgencyAsync, updateAgencyByIdAsync } from "../AgencySlice";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import { toast } from "react-toastify";
 
-// Validation Schema
 const agencySchema = yup.object({
   name: yup.string().required("Agency name is required"),
-  email: yup.string().email("Invalid email").required("Email is required"),
-  contactPerson: yup.string().required("Contact person is required"),
+  shortName: yup
+    .string()
+    .trim()
+    .max(32, "Short name must be at most 32 characters"),
+  contactPerson: yup.string().required("Administrator name is required"),
+  email: yup
+    .string()
+    .email("Invalid email")
+    .required("Administrator email is required"),
   phone: yup.string().required("Phone is required"),
   address: yup.string(),
   industryType: yup.string().required("Industry type is required"),
@@ -20,18 +26,16 @@ const agencySchema = yup.object({
     .required("Max agents is required"),
   subscriptionPlan: yup.string(),
   licenseNumber: yup.string(),
-  password: yup.string().when("$isEditMode", {
-    is: false,
-    then: (schema) =>
-      schema
-        .required("Password is required")
-        .min(6, "Password must be at least 6 characters"),
-    otherwise: (schema) => schema.notRequired(),
-  }),
 });
 
-// Field Configuration
 const getAgencyFields = (isEditMode) => [
+  {
+    name: "_section_agency",
+    type: "section",
+    title: "Agency details",
+    description:
+      "Business information for this tenant. Agents and records are scoped to this agency.",
+  },
   {
     name: "name",
     label: "Agency Name",
@@ -39,23 +43,12 @@ const getAgencyFields = (isEditMode) => [
     gridSize: { xs: 12 },
   },
   {
-    name: "email",
-    label: "Email",
-    type: "email",
-    gridSize: { xs: 12 },
-    disabled: isEditMode,
-    helperText: isEditMode
-      ? undefined
-      : "This email will be used for the agency admin account",
-  },
-  {
-    name: "contactPerson",
-    label: "Contact Person",
+    name: "shortName",
+    label: "Agency Short Name",
     type: "text",
     gridSize: { xs: 12 },
-    helperText: isEditMode
-      ? undefined
-      : "This person will be the Agency Manager (AGENCY_ADMIN)",
+    helperText:
+      "Used in the navbar and S3 folder prefix. If empty, the full agency name is used.",
   },
   {
     name: "phone",
@@ -84,27 +77,8 @@ const getAgencyFields = (isEditMode) => [
     ],
     helperText: isEditMode
       ? "Changing industry type will update all users in this agency"
-      : "Select the primary industry this agency operates in",
+      : "Primary industry this agency operates in",
   },
-  ...(isEditMode
-    ? [
-        {
-          name: "password",
-          label: "New Password (leave blank to keep current)",
-          type: "password",
-          gridSize: { xs: 12 },
-          helperText: "Minimum 6 characters - updates admin password",
-        },
-      ]
-    : [
-        {
-          name: "password",
-          label: "Password",
-          type: "password",
-          gridSize: { xs: 12 },
-          helperText: "Minimum 6 characters for Agency Manager login",
-        },
-      ]),
   {
     name: "maxAgents",
     label: "Max Agents",
@@ -128,14 +102,39 @@ const getAgencyFields = (isEditMode) => [
     type: "text",
     gridSize: { xs: 12 },
   },
+  {
+    name: "_section_admin",
+    type: "section",
+    title: "Agency administrator",
+    description: isEditMode
+      ? "The person who manages this agency (role: Agency Admin)."
+      : "Creates one Agency Admin account. They will receive an email to set their password — no password needed here.",
+  },
+  {
+    name: "contactPerson",
+    label: "Administrator Name",
+    type: "text",
+    gridSize: { xs: 12 },
+  },
+  {
+    name: "email",
+    label: "Administrator Email",
+    type: "email",
+    gridSize: { xs: 12 },
+    disabled: isEditMode,
+    helperText: isEditMode
+      ? "Email cannot be changed after creation"
+      : "Login email; also stored on the agency record",
+  },
 ];
 
 const AgencyForm = ({ formId, initialData = null, onClose }) => {
   const dispatch = useDispatch();
-  const isEditMode = Boolean(initialData);
+  const isEditMode = Boolean(initialData?._id);
 
   const defaultValues = {
     name: initialData?.name || "",
+    shortName: initialData?.shortName || "",
     email: initialData?.email || "",
     contactPerson: initialData?.contactPerson || "",
     phone: initialData?.phone || "",
@@ -144,17 +143,13 @@ const AgencyForm = ({ formId, initialData = null, onClose }) => {
     maxAgents: initialData?.maxAgents || 10,
     subscriptionPlan: initialData?.subscriptionPlan || "enterprise",
     licenseNumber: initialData?.licenseNumber || "",
-    password: "",
   };
 
   const handleFormSubmit = async (formData) => {
     try {
       const data = { ...formData };
-
-      // Remove password field if in edit mode and it's empty
-      if (isEditMode && !data.password) {
-        delete data.password;
-      }
+      delete data._section_agency;
+      delete data._section_admin;
 
       if (isEditMode) {
         await dispatch(
@@ -167,7 +162,7 @@ const AgencyForm = ({ formId, initialData = null, onClose }) => {
       } else {
         await dispatch(createAgencyAsync(data)).unwrap();
         toast.success(
-          "Agency created successfully! Manager account created with userType: 'manager'",
+          "Agency created. The administrator will receive an email to set their password.",
         );
       }
       onClose();
@@ -186,7 +181,6 @@ const AgencyForm = ({ formId, initialData = null, onClose }) => {
       onSubmit={handleFormSubmit}
       onCancel={onClose}
       isEditMode={isEditMode}
-      context={{ isEditMode }}
     />
   );
 };

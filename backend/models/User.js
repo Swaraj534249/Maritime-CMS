@@ -1,19 +1,56 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
+const fileMetaSchema = new Schema(
+  {
+    filename: String,
+    originalName: String,
+    path: String,
+    storage: { type: String, default: "s3" },
+    mimetype: String,
+    size: Number,
+    uploadedAt: Date,
+  },
+  { _id: false },
+);
+
 const userSchema = new Schema({
   name: {
     type: String,
     required: true,
     trim: true,
   },
-  avatar: {
-    secureUrl: {
-      type: String,
-    },
-    publicId: {
-      type: String,
-    },
+  avatar: fileMetaSchema,
+  phone: { type: String, trim: true },
+  alternatePhone: { type: String, trim: true },
+  dateOfBirth: Date,
+  gender: {
+    type: String,
+    enum: ["Male", "Female", "Other", ""],
+  },
+  address: { type: String, trim: true },
+  bloodGroup: {
+    type: String,
+    enum: [
+      "A+",
+      "A-",
+      "B+",
+      "B-",
+      "AB+",
+      "AB-",
+      "O+",
+      "O-",
+      "",
+    ],
+  },
+  aadharNumber: { type: String, trim: true },
+  panNumber: { type: String, trim: true },
+  aadhar: fileMetaSchema,
+  pan: fileMetaSchema,
+  socialMedia: {
+    linkedin: { type: String, trim: true },
+    instagram: { type: String, trim: true },
+    facebook: { type: String, trim: true },
   },
   email: {
     type: String,
@@ -54,13 +91,11 @@ const userSchema = new Schema({
     },
     index: true,
   },
-  isVerified: {
-    type: Boolean,
-    default: false,
-  },
-  isActive: {
-    type: Boolean,
-    default: true,
+  status: {
+    type: String,
+    enum: ["unverified", "verified", "active", "inactive"],
+    default: "unverified",
+    index: true,
   },
   createdBy: {
     type: Schema.Types.ObjectId,
@@ -80,7 +115,7 @@ const userSchema = new Schema({
 );
 
 userSchema.index({ agencyId: 1, role: 1 });
-userSchema.index({ agencyId: 1, isActive: 1 });
+userSchema.index({ agencyId: 1, status: 1 });
 userSchema.index({ agencyId: 1, industryType: 1 });
 userSchema.index({ industryType: 1, role: 1 });
 

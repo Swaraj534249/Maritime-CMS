@@ -6,22 +6,13 @@ export const useDocumentActions = () => {
     file?.filename?.toLowerCase().endsWith(".pdf") ||
     file?.originalName?.toLowerCase().endsWith(".pdf");
 
-  const openDocument = (document) => {
-    if (!document?.path) return;
+  const openDocument = (fileMeta) => {
+    if (!fileMeta?.path && !fileMeta?.url) return;
 
-    const fileURL = getFileURL(document.path);
+    const fileURL = getFileURL(fileMeta.path, fileMeta);
+    if (!fileURL) return;
 
-    if (isPDF(document)) {
-      window.open(fileURL, "_blank");
-      return;
-    }
-
-    const link = document.createElement("a");
-    link.href = fileURL;
-    link.download = document.originalName || document.filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(fileURL, "_blank", "noopener,noreferrer");
   };
 
   return { openDocument };
