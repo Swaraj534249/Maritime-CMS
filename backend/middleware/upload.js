@@ -1,7 +1,10 @@
-const { UPLOAD_RULES } = require("./uploadRules");
+const path = require("path");
+const { getRuleFieldsForFolder } = require("./uploadRules");
 const { deleteObject } = require("../aws/s3/storage.service");
 const { isS3ObjectKey } = require("../utils/fileRef");
 const multer = require("multer");
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 const coerceToString = (value) => {
   if (value === undefined || value === null) return "";
@@ -41,14 +44,7 @@ function resolveUploadInfo(req) {
   const rawFolder = coerceToString(req.body?.uploadFolder) || "default";
   const folderName = sanitizeFolderName(rawFolder);
 
-  const rules =
-    UPLOAD_RULES[folderName] ||
-    UPLOAD_RULES[
-      Object.keys(UPLOAD_RULES).find(
-        (key) => key.toLowerCase() === folderName,
-      )
-    ] ||
-    [];
+  const rules = getRuleFieldsForFolder(folderName) || [];
 
   let rawSubFolderValue = "unknown";
   for (const field of rules) {
@@ -67,7 +63,6 @@ function buildStoredFilename(req, file) {
   if (!req._uploadInfo) {
     req._uploadInfo = resolveUploadInfo(req);
   }
-  const path = require("path");
   const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
   const ext = path.extname(file.originalname);
   const nameWithoutExt = path.basename(file.originalname, ext);
@@ -79,7 +74,7 @@ function buildStoredFilename(req, file) {
 
 const memoryUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_BYTES },
   fileFilter: (_req, file, cb) => {
     const allowed = {
       "application/pdf": true,
@@ -97,7 +92,7 @@ const parseResumeUpload = memoryUpload.single("resume");
 
 const fileUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_BYTES },
 });
 
 const uploadSingleFile = fileUpload.single("file");

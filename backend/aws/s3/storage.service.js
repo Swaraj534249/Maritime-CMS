@@ -6,6 +6,18 @@ const {
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { getS3Client } = require("../clients");
 
+function getBucketName() {
+  return process.env.S3_BUCKET_NAME;
+}
+
+function getPresignUploadTtl(fallbackSeconds = 900) {
+  return Number(process.env.S3_PRESIGN_UPLOAD_EXPIRES_SECONDS) || fallbackSeconds;
+}
+
+function getPresignDownloadTtl(fallbackSeconds = 3600) {
+  return Number(process.env.S3_PRESIGN_EXPIRES_SECONDS) || fallbackSeconds;
+}
+
 function buildObjectKey(tenantKey, folderName, subFolderName, filename) {
   return [tenantKey, folderName, subFolderName, filename]
     .map((p) => String(p || "").replace(/^\/+|\/+$/g, ""))
@@ -14,16 +26,15 @@ function buildObjectKey(tenantKey, folderName, subFolderName, filename) {
 }
 
 async function uploadFile({ key, body, contentType }) {
-  const bucket = process.env.S3_BUCKET_NAME;
   await getS3Client().send(
     new PutObjectCommand({
-      Bucket: bucket,
+      Bucket: getBucketName(),
       Key: key,
       Body: body,
       ContentType: contentType,
     }),
   );
-  return { key, bucket };
+  return { key, bucket: getBucketName() };
 }
 
 async function uploadBuffer(buffer, key, contentType) {
@@ -37,40 +48,38 @@ async function uploadBuffer(buffer, key, contentType) {
 async function deleteObject(key) {
   await getS3Client().send(
     new DeleteObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
+      Bucket: getBucketName(),
       Key: key,
     }),
   );
   return true;
 }
 
-async function getPresignedUploadUrl(
-  key,
-  contentType,
-  expiresInSeconds = 900,
-) {
+async function getPresignedUploadUrl(key, contentType, expiresInSeconds) {
   const command = new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
+    Bucket: getBucketName(),
     Key: key,
     ContentType: contentType || "application/octet-stream",
   });
-  const ttl =
-    Number(process.env.S3_PRESIGN_UPLOAD_EXPIRES_SECONDS) ||
-    expiresInSeconds;
-  return getSignedUrl(getS3Client(), command, { expiresIn: ttl });
+  return getSignedUrl(getS3Client(), command, {
+    expiresIn: getPresignUploadTtl(expiresInSeconds),
+  });
 }
 
-async function getPresignedDownloadUrl(key, expiresInSeconds = 3600) {
+async function getPresignedDownloadUrl(key, expiresInSeconds) {
   const command = new GetObjectCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
+    Bucket: getBucketName(),
     Key: key,
   });
-  const ttl =
-    Number(process.env.S3_PRESIGN_EXPIRES_SECONDS) || expiresInSeconds;
-  return getSignedUrl(getS3Client(), command, { expiresIn: ttl });
+  return getSignedUrl(getS3Client(), command, {
+    expiresIn: getPresignDownloadTtl(expiresInSeconds),
+  });
 }
 
 module.exports = {
+  getBucketName,
+  getPresignUploadTtl,
+  getPresignDownloadTtl,
   buildObjectKey,
   uploadFile,
   uploadBuffer,

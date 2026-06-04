@@ -199,9 +199,17 @@ exports.verifyOtp = async (req, res) => {
       (await bcrypt.compare(req.body.otp, isOtpExisting.otp))
     ) {
       await Otp.findByIdAndDelete(isOtpExisting._id);
+
+      const currentStatus = normalizeStatus(isValidUserId);
+      if (currentStatus === STATUS.INACTIVE) {
+        return res.status(403).json({ message: "Account is deactivated" });
+      }
+
+      const nextStatus =
+        isValidUserId.role === "AGENT" ? STATUS.VERIFIED : STATUS.ACTIVE;
       const verifiedUser = await User.findByIdAndUpdate(
         isValidUserId._id,
-        { status: STATUS.ACTIVE },
+        { status: nextStatus },
         { new: true },
       );
       return res.status(200).json(sanitizeUser(verifiedUser));
@@ -351,8 +359,15 @@ exports.resetPassword = async (req, res) => {
 
       // resets the password after hashing it
       await Otp.deleteMany({ user: isExistingUser._id });
-      const nextStatus =
-        isExistingUser.role === "AGENT" ? STATUS.VERIFIED : STATUS.ACTIVE;
+      const prevStatus = normalizeStatus(isExistingUser);
+      let nextStatus;
+      if (prevStatus === STATUS.INACTIVE) {
+        nextStatus = STATUS.INACTIVE;
+      } else if (isExistingUser.role === "AGENT") {
+        nextStatus = STATUS.VERIFIED;
+      } else {
+        nextStatus = STATUS.ACTIVE;
+      }
       await User.findByIdAndUpdate(isExistingUser._id, {
         password: await bcrypt.hash(req.body.password, 10),
         status: nextStatus,
@@ -399,6 +414,33 @@ exports.checkAuth = async (req, res) => {
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      const status = normalizeStatus(user);
+      if (status === STATUS.INACTIVE) {
+        res.clearCookie("token", {
+          sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
+          httpOnly: true,
+          secure: process.env.PRODUCTION === "true",
+        });
+        return res.status(403).json({
+          message:
+            "Your account is deactivated. Please contact your administrator.",
+        });
+      }
+      if (
+        status === STATUS.UNVERIFIED &&
+        user.role !== "SUPER_ADMIN"
+      ) {
+        res.clearCookie("token", {
+          sameSite: process.env.PRODUCTION === "true" ? "None" : "Lax",
+          httpOnly: true,
+          secure: process.env.PRODUCTION === "true",
+        });
+        return res.status(403).json({
+          message:
+            "Please set your password using the link sent to your email.",
+        });
       }
 
       const agency =

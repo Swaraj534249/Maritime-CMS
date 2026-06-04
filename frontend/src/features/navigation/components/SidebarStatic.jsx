@@ -11,7 +11,6 @@ import { Link, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import BusinessIcon from "@mui/icons-material/Business";
 import PeopleIcon from "@mui/icons-material/People";
-import ArticleIcon from "@mui/icons-material/Article";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import PersonIcon from "@mui/icons-material/Person";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
@@ -57,11 +56,6 @@ export const SidebarStatic = ({ expanded = false }) => {
     };
     return baseItems[userRole] || [dashboardItem];
   };
-
-  const contracts = [
-    { name: "Proposed", to: "/propose", icon: <ArticleIcon /> },
-    { name: "Selected", to: "/selecte", icon: <ArticleIcon /> },
-  ];
 
   const menuItems = getMenuItems();
   const isActive = (path) => location.pathname === path;
@@ -116,13 +110,6 @@ export const SidebarStatic = ({ expanded = false }) => {
       <List sx={{ pt: 1, width: "100%" }}>
         {menuItems.map(renderItem)}
       </List>
-
-      {(userRole === "AGENT" || userRole === "AGENCY_ADMIN") && (
-        <>
-          <Divider />
-          <List sx={{ width: "100%" }}>{contracts.map(renderItem)}</List>
-        </>
-      )}
 
       <Box sx={{ flexGrow: 1 }} />
     </Box>

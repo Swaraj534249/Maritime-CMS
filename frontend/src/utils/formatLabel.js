@@ -14,11 +14,6 @@ export function formatDisplayLabel(value) {
     .join(" ");
 }
 
-/** @deprecated Use formatDisplayLabel — kept for agent table imports */
-export function formatUserTypeLabel(userType) {
-  return formatDisplayLabel(userType) || "N/A";
-}
-
 /** Badge text on profile: user type, else role name */
 export function getProfileBadgeLabel(user) {
   if (!user) return null;

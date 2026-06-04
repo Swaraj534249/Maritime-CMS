@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Box, Toolbar } from "@mui/material";
+import { Box } from "@mui/material";
 import { Navbar } from "../features/navigation/components/Navbar";
 import { SidebarStatic } from "../features/navigation/components/SidebarStatic";
 import { BrandBox } from "../features/navigation/components/BrandBox";
 import { AgencyBox } from "../features/navigation/components/AgencyBox";
 import { PageTitleProvider } from "../features/navigation/PageTitleContext";
-import { AgentStatusRedirect } from "../features/auth/components/AgentStatusRedirect";
 
 const NAVBAR_HEIGHT = 64;
 const SIDEBAR_COLLAPSED = 72;
@@ -54,9 +53,15 @@ export const RootLayout = () => {
             sidebarWidth={sidebarWidth}
             onMenuToggle={() => setSidebarOpen((o) => !o)}
           />
-          <Box component="main" sx={{ flexGrow: 1, p: 2 }}>
-            <Toolbar sx={{ minHeight: NAVBAR_HEIGHT }} />
-            <AgentStatusRedirect />
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              p: 2,
+              pt: `${NAVBAR_HEIGHT + 16}px`,
+            }}
+          >
+            <Outlet />
           </Box>
         </Box>
       </Box>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import {
   Dialog,
   DialogTitle,
@@ -18,7 +18,6 @@ import { toast } from "react-toastify";
 import FileUploadField from "../../../components/FileUpload/FileUploadField";
 import {
   submitFeedbackAsync,
-  selectFeedbackSubmitStatus,
   resetFeedbackStatuses,
 } from "../FeedbackSlice";
 
@@ -29,11 +28,11 @@ const CATEGORIES = [
 
 export function FeedbackForm({ open, onClose, onSubmitted }) {
   const dispatch = useDispatch();
-  const submitStatus = useSelector(selectFeedbackSubmitStatus);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
   const resetForm = () => {
     setCategory(CATEGORIES[0]);
@@ -50,6 +49,8 @@ export function FeedbackForm({ open, onClose, onSubmitted }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const formData = new FormData();
       formData.append("category", category);
@@ -63,10 +64,10 @@ export function FeedbackForm({ open, onClose, onSubmitted }) {
       handleClose();
     } catch (err) {
       toast.error(err?.message || "Failed to submit feedback");
+    } finally {
+      setSubmitting(false);
     }
   };
-
-  const submitting = submitStatus === "pending";
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>

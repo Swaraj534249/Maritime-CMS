@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import * as yup from "yup";
 import { createAgentAsync, updateAgentByIdAsync } from "../AgentSlice";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
+import { getErrorMessage } from "../../../utils/getErrorMessage";
 import { toast } from "react-toastify";
 
 const agentSchema = yup
@@ -66,7 +67,7 @@ const AgentForm = ({ formId, initialData: initialDataProp = null, onClose }) => 
       onClose();
     } catch (error) {
       console.error("Form submission error:", error);
-      toast.error(error?.message || "Failed to save agent");
+      toast.error(getErrorMessage(error, "Failed to save agent"));
     }
   };
 

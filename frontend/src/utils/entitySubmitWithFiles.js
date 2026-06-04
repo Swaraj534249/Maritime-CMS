@@ -69,6 +69,12 @@ export async function submitEntityWithFiles({
   if (Object.keys(uploads).length) {
     const patchData = new FormData();
     patchData.append("_id", id);
+    patchData.append("uploadFolder", uploadFolder);
+    Object.entries(uploadFormFields || {}).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== "") {
+        patchData.append(key, val);
+      }
+    });
     patchData.append("s3_uploads", JSON.stringify(uploads));
     await update(patchData);
   }

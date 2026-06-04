@@ -1,4 +1,4 @@
-const { mapPresignedMeta } = require("./candidateFiles.helper"); // shared S3 metadata shape
+const { mapPresignedMeta } = require("./presignedMeta.helper");
 
 function applyProfileFileUploads(presigned = {}, existing = {}) {
   const updates = {};

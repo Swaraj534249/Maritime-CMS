@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import {
@@ -23,6 +23,7 @@ import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ImageIcon from "@mui/icons-material/Image";
 import { toast } from "react-toastify";
 import { getFileSizeError, formatFileSize } from "../../utils/fileUtils";
+import { setFormSubmitting } from "../../hooks/useFormSubmitting";
 
 /**
  * Dynamic Form Builder Component with File Upload Support
@@ -45,11 +46,13 @@ const DynamicFormBuilder = ({
     handleSubmit,
     setValue,
     getValues,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm({
     resolver: validationSchema ? yupResolver(validationSchema) : undefined,
     defaultValues,
   });
+
+  const submitInFlightRef = useRef(false);
 
   // Local state for file uploads
   const [uploadedFiles, setUploadedFiles] = useState({});
@@ -114,8 +117,16 @@ const DynamicFormBuilder = ({
     resetFileInput(fieldName);
   };
 
-  const handleFormSubmit = (data) => {
-    onSubmit(data, uploadedFiles);
+  const handleFormSubmit = async (data) => {
+    if (submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
+    setFormSubmitting(formId, true);
+    try {
+      await onSubmit(data, uploadedFiles);
+    } finally {
+      submitInFlightRef.current = false;
+      setFormSubmitting(formId, false);
+    }
   };
 
   const renderFileUpload = (field) => {

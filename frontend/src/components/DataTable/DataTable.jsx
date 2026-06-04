@@ -30,7 +30,7 @@ const DataTable = ({
   onSortModelChange,
   sortingMode = "client",
 }) => {
-  const containerHeight = height || "calc(100vh - 145px)";
+  const containerHeight = height || "calc(100vh - 152px)";
 
   return (
     <Box sx={{ width: "100%", height: containerHeight, ...sx }}>

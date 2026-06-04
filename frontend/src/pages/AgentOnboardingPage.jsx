@@ -19,7 +19,14 @@ export function AgentOnboardingPage() {
 
   const handleComplete = async ({ id, data, s3Uploads }) => {
     const updated = await completeUserOnboarding({ id, data, s3Uploads });
-    dispatch(setLoggedInUser(updated));
+    const agency = updated.agencyId;
+    const merged = {
+      ...updated,
+      agencyId: agency?._id || agency || updated.agencyId,
+      agencyName: agency?.name || loggedInUser?.agencyName,
+      agencyShortName: agency?.shortName || loggedInUser?.agencyShortName,
+    };
+    dispatch(setLoggedInUser(merged));
     toast.success("Profile saved. Welcome!");
     navigate("/dashboard", { replace: true });
   };

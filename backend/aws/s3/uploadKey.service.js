@@ -46,31 +46,51 @@ function buildUploadMeta({ key, filename, originalName, contentType, size }) {
   };
 }
 
-async function uploadFileToS3(
+/**
+ * Resolves tenant-scoped S3 key from request context.
+ * @param {boolean} requireSubFolder - direct uploads require a business key subfolder
+ */
+function resolveUploadKeyForRequest(
   req,
-  { buffer, fieldname, originalName, contentType, fileSize },
+  { fieldname, originalName, contentType, fileSize, requireSubFolder = false },
 ) {
   validateUploadMeta({ fieldname, originalName, contentType, fileSize });
 
   req._uploadInfo = resolveUploadInfo(req);
   const { tenantKey, folderName, subFolderName } = req._uploadInfo;
+
   if (!tenantKey || tenantKey === "unknown") {
     throw new AppError(
       400,
       "Agency short name or name is required for file upload",
     );
   }
-  if (subFolderName === "unknown") {
+  if (requireSubFolder && subFolderName === "unknown") {
     throw new AppError(
       400,
       "Cannot upload files until the record exists with a unique folder key (e.g. indosNumber, company_shortname, vesselname)",
     );
   }
+
   const filename = buildStoredFilename(req, {
     fieldname,
     originalname: originalName,
   });
   const key = buildObjectKey(tenantKey, folderName, subFolderName, filename);
+  return { key, filename };
+}
+
+async function uploadFileToS3(
+  req,
+  { buffer, fieldname, originalName, contentType, fileSize },
+) {
+  const { key, filename } = resolveUploadKeyForRequest(req, {
+    fieldname,
+    originalName,
+    contentType,
+    fileSize,
+    requireSubFolder: true,
+  });
 
   await uploadBuffer(buffer, key, contentType);
 
@@ -86,6 +106,7 @@ async function uploadFileToS3(
 module.exports = {
   validateUploadMeta,
   buildUploadMeta,
+  resolveUploadKeyForRequest,
   uploadFileToS3,
   ALLOWED_MIMES,
   MAX_BYTES,

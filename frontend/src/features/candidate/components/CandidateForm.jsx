@@ -7,6 +7,7 @@ import { Box, CircularProgress, Typography, Alert } from "@mui/material";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 import { parseResume } from "../CandidateApi";
 import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
+import { getErrorMessage } from "../../../utils/getErrorMessage";
 import { getFileSizeError } from "../../../utils/fileUtils";
 import {
   createCandidateAsync,
@@ -498,11 +499,7 @@ const CandidateForm = ({
         return;
       }
 
-      const msg =
-        error?.message ||
-        (typeof error === "string" ? error : null) ||
-        "Failed to save candidate";
-      toast.error(msg);
+      toast.error(getErrorMessage(error, "Failed to save candidate"));
     }
   };
 

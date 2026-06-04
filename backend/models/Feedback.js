@@ -1,18 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-
-const fileMetaSchema = new Schema(
-  {
-    filename: String,
-    originalName: String,
-    key: String,
-    path: String,
-    mimetype: String,
-    size: Number,
-    uploadedAt: { type: Date, default: Date.now },
-  },
-  { _id: false },
-);
+const { fileMetaSchema } = require("./schemas/fileMeta");
 
 const updateEntrySchema = new Schema(
   {

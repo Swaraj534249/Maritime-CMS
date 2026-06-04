@@ -47,6 +47,7 @@ import Search from "../../../components/Search/Search";
 import AgencyForm from "./AgencyForm";
 import { useRowActions } from "../../../hooks/useRowActions";
 import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 
 export const AgencyManagement = () => {
@@ -65,6 +66,7 @@ export const AgencyManagement = () => {
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const formSubmitting = useFormSubmitting("agency-form");
 
   const { anchorEl, open, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
@@ -465,15 +467,15 @@ export const AgencyManagement = () => {
               py: 2,
             }}
           >
-            <Button variant="outlined" onClick={handleCloseModal}>
+            <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
               Cancel
             </Button>
             <LoadingButton
               type="submit"
               form="agency-form"
               variant="contained"
-              loading={createStatus === "pending" || updateStatus === "pending"}
-              disabled={createStatus === "pending" || updateStatus === "pending"}
+              loading={formSubmitting}
+              disabled={formSubmitting}
             >
               {editData ? "Update" : "Create"}
             </LoadingButton>

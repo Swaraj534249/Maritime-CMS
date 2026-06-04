@@ -13,6 +13,8 @@ export const updateUserById = async (update) => {
 export const updateUserProfile = async ({ id, data, s3Uploads }) => {
   const res = await axiosi.patch(`/users/${id}/profile`, {
     ...data,
+    userId: id,
+    uploadFolder: "users",
     ...(s3Uploads && Object.keys(s3Uploads).length
       ? { s3_uploads: JSON.stringify(s3Uploads) }
       : {}),
@@ -23,6 +25,8 @@ export const updateUserProfile = async ({ id, data, s3Uploads }) => {
 export const completeUserOnboarding = async ({ id, data, s3Uploads }) => {
   const res = await axiosi.post(`/users/${id}/complete-onboarding`, {
     ...data,
+    userId: id,
+    uploadFolder: "users",
     ...(s3Uploads && Object.keys(s3Uploads).length
       ? { s3_uploads: JSON.stringify(s3Uploads) }
       : {}),

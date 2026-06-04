@@ -1,4 +1,5 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { createApiThunk } from "../../config/thunkHelpers";
 import {
   submitFeedback,
   fetchFeedbacks,
@@ -39,51 +40,29 @@ const initialState = {
   error: null,
 };
 
-export const submitFeedbackAsync = createAsyncThunk(
+export const submitFeedbackAsync = createApiThunk(
   "feedback/submit",
-  async (formData, { rejectWithValue }) => {
-    try {
-      return await submitFeedback(formData);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (formData) => submitFeedback(formData),
 );
 
-export const fetchFeedbacksAsync = createAsyncThunk(
+export const fetchFeedbacksAsync = createApiThunk(
   "feedback/fetch",
-  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
-    try {
-      return await fetchFeedbacks(params, signal);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  ({ params = {}, signal } = {}) => fetchFeedbacks(params, signal),
 );
 
-export const getFeedbackByIdAsync = createAsyncThunk(
+export const getFeedbackByIdAsync = createApiThunk(
   "feedback/getById",
-  async (id, { rejectWithValue }) => {
-    try {
-      return await getFeedbackById(id);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (id) => getFeedbackById(id),
 );
 
-export const updateFeedbackByIdAsync = createAsyncThunk(
+export const updateFeedbackByIdAsync = createApiThunk(
   "feedback/update",
-  async ({ id, status, note, files = [] }, { rejectWithValue }) => {
-    try {
-      const formData = new FormData();
-      formData.append("status", status);
-      if (note) formData.append("note", note);
-      files.forEach((file) => formData.append("attachments", file));
-      return await updateFeedbackById({ id, formData });
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
+  async ({ id, status, note, files = [] }) => {
+    const formData = new FormData();
+    formData.append("status", status);
+    if (note) formData.append("note", note);
+    files.forEach((file) => formData.append("attachments", file));
+    return updateFeedbackById({ id, formData });
   },
 );
 

@@ -1,8 +1,8 @@
-require("dotenv").config();
 const mongoose = require("mongoose");
 
 /**
  * Connect once before accepting traffic. Fails fast so the API does not run without MongoDB.
+ * Env is loaded in index.js before this module runs.
  */
 exports.connectToDB = async () => {
   if (!process.env.MONGO_URI) {

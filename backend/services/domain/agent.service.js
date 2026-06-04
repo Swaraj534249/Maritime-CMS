@@ -255,19 +255,16 @@ async function getById(req) {
   return agent;
 }
 
+const ADMIN_AGENT_FIELDS = ["name", "userType"];
+
 async function updateById(req) {
   const { id } = req.params;
-  const updates = { ...req.body };
+  const updates = {};
+  for (const key of ADMIN_AGENT_FIELDS) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
   const userRole = req.user.role;
   const userAgencyId = req.user.agencyId;
-
-  delete updates._id;
-  delete updates.email;
-  delete updates.password;
-  delete updates.role;
-  delete updates.agencyId;
-  delete updates.createdBy;
-  delete updates.industryType;
 
   const query = { _id: id, role: { $in: ["AGENT", "AGENCY_ADMIN"] } };
   if (userRole === "AGENCY_ADMIN") query.agencyId = userAgencyId;

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Box,
   Grid,
@@ -32,6 +32,7 @@ export function ProfileForm({
   mode = "onboarding",
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const submitInFlightRef = useRef(false);
   const [avatarFile, setAvatarFile] = useState(null);
   const [aadharFile, setAadharFile] = useState(null);
   const [panFile, setPanFile] = useState(null);
@@ -59,6 +60,8 @@ export function ProfileForm({
   });
 
   const handleFormSubmit = async (values) => {
+    if (submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
     setSubmitting(true);
     try {
       const uploadedFiles = {};
@@ -102,6 +105,7 @@ export function ProfileForm({
     } catch (err) {
       toast.error(err?.message || "Failed to save profile");
     } finally {
+      submitInFlightRef.current = false;
       setSubmitting(false);
     }
   };
@@ -261,6 +265,7 @@ export function ProfileForm({
           type="submit"
           variant="contained"
           loading={submitting}
+          disabled={submitting}
           sx={{ textTransform: "none" }}
         >
           {submitLabel}

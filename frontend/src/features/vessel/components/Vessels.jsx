@@ -30,6 +30,7 @@ import {
   DialogActions,
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -73,6 +74,7 @@ export const Vessels = () => {
 
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
   const [entityForFilesDialog, setEntityForFilesDialog] = useState(null);
+  const formSubmitting = useFormSubmitting("vessel-form");
   const { anchorEl, open, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
 
@@ -451,7 +453,7 @@ export const Vessels = () => {
               py: 2,
             }}
           >
-            <Button variant="outlined" onClick={handleCloseModal}>
+            <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
               Cancel
             </Button>
 
@@ -459,8 +461,8 @@ export const Vessels = () => {
               type="submit"
               form="vessel-form"
               variant="contained"
-              loading={createStatus === "pending" || updateStatus === "pending"}
-              disabled={createStatus === "pending" || updateStatus === "pending"}
+              loading={formSubmitting}
+              disabled={formSubmitting}
             >
               {editData ? "Update" : "Create"}
             </LoadingButton>

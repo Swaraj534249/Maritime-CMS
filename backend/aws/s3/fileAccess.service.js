@@ -1,10 +1,12 @@
-const { getPresignedDownloadUrl } = require("./storage.service");
+const {
+  getPresignedDownloadUrl,
+  getPresignDownloadTtl,
+} = require("./storage.service");
 const { isS3ObjectKey, isFileMetadata } = require("../../utils/fileRef");
 
 async function resolveAccessUrl(filePath) {
   if (!filePath || !isS3ObjectKey(filePath)) return null;
-  const ttl = Number(process.env.S3_PRESIGN_EXPIRES_SECONDS) || 3600;
-  return getPresignedDownloadUrl(filePath, ttl);
+  return getPresignedDownloadUrl(filePath, getPresignDownloadTtl());
 }
 
 function isBsonValue(value) {
@@ -35,8 +37,7 @@ async function enrichFileMetadata(file) {
 
   if (isS3ObjectKey(file.path) && isImageFile(file)) {
     try {
-      const ttl = Number(process.env.S3_PRESIGN_EXPIRES_SECONDS) || 3600;
-      out.url = await getPresignedDownloadUrl(file.path, ttl);
+      out.url = await getPresignedDownloadUrl(file.path, getPresignDownloadTtl());
     } catch (err) {
       if (err?.name !== "NoSuchKey" && err?.Code !== "NoSuchKey") {
         console.warn("[enrichDeep] presign:", file.path, err.message);

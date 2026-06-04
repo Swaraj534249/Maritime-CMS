@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
   Avatar,
   ListItemIcon,
   ListItemText,
@@ -30,6 +31,7 @@ import LockResetIcon from "@mui/icons-material/LockReset";
 import ToggleOnIcon from "@mui/icons-material/ToggleOn";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import { toast } from "react-toastify";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
@@ -51,10 +53,11 @@ import {
   setSearchValue,
   fetchAgentsAsync,
   toggleAgentStatusAsync,
+  resetAgentPasswordAsync,
   selectCreateStatus,
   selectAgency,
 } from "../AgentSlice";
-import { formatUserTypeLabel } from "../../../utils/formatLabel";
+import { formatDisplayLabel } from "../../../utils/formatLabel";
 
 export const AgentManagement = () => {
   const { agencyId } = useParams();
@@ -74,6 +77,10 @@ export const AgentManagement = () => {
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const formSubmitting = useFormSubmitting("agent-form");
 
   const { anchorEl, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
@@ -181,9 +188,32 @@ export const AgentManagement = () => {
   };
 
   const handleResetPassword = () => {
-    console.log("Reset password for:", selectedRowId);
+    setNewPassword("");
+    setConfirmPassword("");
+    setResetDialogOpen(true);
     handleMenuClose();
-    toast.info("Password reset functionality to be implemented");
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    try {
+      await dispatch(
+        resetAgentPasswordAsync({ id: selectedRowId, newPassword }),
+      ).unwrap();
+      toast.success("Agent password reset successfully");
+      setResetDialogOpen(false);
+      dispatch(resetStatuses());
+    } catch (err) {
+      toast.error(err?.message || "Failed to reset password");
+    }
   };
 
   const handleCloseModal = () => {
@@ -235,7 +265,7 @@ export const AgentManagement = () => {
     const { userType } = params.row;
     return (
       <Chip
-        label={formatUserTypeLabel(userType)}
+        label={formatDisplayLabel(userType) || "N/A"}
         size="small"
         variant="outlined"
         color="primary"
@@ -530,17 +560,56 @@ export const AgentManagement = () => {
             py: 2,
           }}
         >
-          <Button variant="outlined" onClick={handleCloseModal}>
+          <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
             Cancel
           </Button>
           <LoadingButton
             type="submit"
             form="agent-form"
             variant="contained"
-            loading={createStatus === "pending" || updateStatus === "pending"}
-            disabled={createStatus === "pending" || updateStatus === "pending"}
+            loading={formSubmitting}
+            disabled={formSubmitting}
           >
             {editData ? "Update" : "Create"}
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={resetDialogOpen}
+        onClose={() => setResetDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Reset agent password</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="New password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              fullWidth
+              autoComplete="new-password"
+            />
+            <TextField
+              label="Confirm password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              fullWidth
+              autoComplete="new-password"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setResetDialogOpen(false)}>Cancel</Button>
+          <LoadingButton
+            variant="contained"
+            onClick={handleConfirmResetPassword}
+            loading={updateStatus === "pending"}
+          >
+            Reset password
           </LoadingButton>
         </DialogActions>
       </Dialog>

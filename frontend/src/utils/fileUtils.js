@@ -1,6 +1,7 @@
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DescriptionIcon from "@mui/icons-material/Description";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import { getApiBaseUrl } from "../config/axios";
 
 /** Must match backend `MAX_BYTES` (10 MB). */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -33,11 +34,6 @@ export function findOversizedFiles(filesMap = {}) {
   return invalid;
 }
 
-const apiBase = () =>
-  process.env.REACT_APP_API_URL ||
-  process.env.REACT_APP_BASE_URL ||
-  "http://localhost:8000";
-
 /** S3 object key stored in MongoDB path field. */
 export const isS3Key = (filePath) => {
   if (!filePath) return false;
@@ -52,7 +48,7 @@ export const getFileURL = (filePath, file) => {
   if (file?.url) return file.url;
   if (!filePath || !isS3Key(filePath)) return null;
 
-  const baseURL = apiBase();
+  const baseURL = getApiBaseUrl();
   const normalized = String(filePath).replace(/\\/g, "/");
 
   const isImage =

@@ -1,4 +1,7 @@
-const { SendRawEmailCommand } = require("@aws-sdk/client-ses");
+const {
+  SendEmailCommand,
+  SendRawEmailCommand,
+} = require("@aws-sdk/client-ses");
 const MailComposer = require("nodemailer/lib/mail-composer");
 const { getSesClient } = require("../clients");
 const { getSesFromEmail } = require("../env");
@@ -7,7 +10,6 @@ async function sendSesEmail({ to, subject, html, text, replyTo, cc }) {
   if (cc?.length) {
     return sendSesRawEmail({ to, cc, subject, html, replyTo });
   }
-  const { SendEmailCommand } = require("@aws-sdk/client-ses");
   const command = new SendEmailCommand({
     Source: getSesFromEmail(),
     Destination: { ToAddresses: [to] },

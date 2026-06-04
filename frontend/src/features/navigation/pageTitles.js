@@ -13,8 +13,6 @@ const ROUTE_TITLES = [
   ["/dashboard", "Dashboard"],
   ["/profile", "Profile"],
   ["/agent/onboarding", "Complete your profile"],
-  ["/propose", "Proposed Contracts"],
-  ["/selecte", "Selected Contracts"],
 ];
 
 export function getPageTitleFromPath(pathname = "") {

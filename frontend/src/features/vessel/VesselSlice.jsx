@@ -1,4 +1,5 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { createApiThunk } from "../../config/thunkHelpers";
 import {
   createVessel,
   fetchVessels,
@@ -51,59 +52,29 @@ const initialState = {
   error: null,
 };
 
-export const fetchVesselsAsync = createAsyncThunk(
+export const fetchVesselsAsync = createApiThunk(
   "vessels/fetch",
-  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
-    try {
-      return await fetchVessels(params, signal);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  ({ params = {}, signal } = {}) => fetchVessels(params, signal),
 );
 
-export const createVesselAsync = createAsyncThunk(
+export const createVesselAsync = createApiThunk(
   "vessels/create",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await createVessel(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => createVessel(payload),
 );
 
-export const updateVesselByIdAsync = createAsyncThunk(
+export const updateVesselByIdAsync = createApiThunk(
   "vessels/update",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateVesselById(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => updateVesselById(payload),
 );
 
-export const fetchVesselByIdAsync = createAsyncThunk(
+export const fetchVesselByIdAsync = createApiThunk(
   "vessels/getById",
-  async (id, { rejectWithValue }) => {
-    try {
-      return await getVesselById(id);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (id) => getVesselById(id),
 );
 
-export const toggleVesselStatusAsync = createAsyncThunk(
+export const toggleVesselStatusAsync = createApiThunk(
   "vessels/toggleStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await toggleVesselStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => toggleVesselStatus(payload),
 );
 
 const vesselSlice = createSlice({

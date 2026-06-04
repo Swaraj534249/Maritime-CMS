@@ -1,4 +1,5 @@
 import { axiosi } from "../config/axios";
+import { getErrorMessage } from "./getErrorMessage";
 
 const LOGO_FIELDS = new Set(["company_logo"]);
 const LOGO_MAX_WIDTH = 256;
@@ -82,14 +83,6 @@ export async function uploadFileViaPresigned(file, {
   };
 }
 
-function extractUploadErrorMessage(err) {
-  return (
-    err?.response?.data?.message ||
-    err?.message ||
-    "Upload failed"
-  );
-}
-
 /**
  * Upload form files one-by-one. Successful uploads are kept even if others fail.
  * @returns {{ uploads: Record<string, object>, failures: { fieldname, fileName, message }[] }}
@@ -113,7 +106,7 @@ export async function uploadFormFilesViaPresigned(uploadedFiles, {
       failures.push({
         fieldname,
         fileName: file.name,
-        message: extractUploadErrorMessage(err),
+        message: getErrorMessage(err, "Upload failed"),
       });
     }
   }

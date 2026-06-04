@@ -121,16 +121,16 @@ async function getById(id) {
   return enrichDeep(result);
 }
 
+const ADMIN_USER_FIELDS = ["name"];
+
 async function updateById(id, body) {
-  const updates = { ...body };
-  delete updates.password;
-  delete updates.role;
-  delete updates.agencyId;
-  delete updates.industryType;
-  delete updates.createdBy;
-  delete updates._id;
-  delete updates.email;
-  delete updates.status;
+  const updates = {};
+  for (const key of ADMIN_USER_FIELDS) {
+    if (body[key] !== undefined) updates[key] = body[key];
+  }
+  if (!Object.keys(updates).length) {
+    throw new AppError(400, "No allowed fields to update");
+  }
 
   const updated = await User.findOneAndUpdate(
     { _id: id },

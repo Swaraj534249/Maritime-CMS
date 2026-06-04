@@ -22,7 +22,6 @@ const authRoutes = require("./routes/auth.route");
 const userRoutes = require("./routes/user.route");
 const agencyRoutes = require("./routes/agency.route");
 const agentRoutes = require("./routes/agent.route");
-
 const vesselOwnerRoutes = require("./routes/vesselOwner.route");
 const vesselRoutes = require("./routes/vessel.route");
 const candidateRoutes = require("./routes/candidate.route");
@@ -31,6 +30,8 @@ const feedbackRoutes = require("./routes/feedback.route");
 
 const { connectToDB } = require("./database/db");
 const { errorHandler } = require("./middleware/errorHandler");
+const { verifyToken } = require("./middleware/VerifyToken");
+const { requireAccountActive } = require("./middleware/requireAccountActive");
 
 const server = express();
 const PORT = Number(process.env.PORT) || 8000;
@@ -41,7 +42,7 @@ server.use(
     origin: process.env.ORIGIN,
     credentials: true,
     exposedHeaders: ["X-Total-Count"],
-    methods: ["GET", "POST", "PATCH", "DELETE"],
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
   }),
 );
 server.use(express.json());
@@ -49,15 +50,19 @@ server.use(cookieParser());
 server.use(morgan("tiny"));
 
 server.use("/auth", authRoutes);
-server.use("/users", userRoutes);
-server.use("/agencies", agencyRoutes);
-server.use("/agents", agentRoutes);
 
-server.use("/vesselOwners", vesselOwnerRoutes);
-server.use("/vessels", vesselRoutes);
-server.use("/candidates", candidateRoutes);
-server.use("/files", filesRoutes);
-server.use("/feedbacks", feedbackRoutes);
+const protectedApi = express.Router();
+protectedApi.use(verifyToken);
+protectedApi.use(requireAccountActive);
+protectedApi.use("/users", userRoutes);
+protectedApi.use("/agencies", agencyRoutes);
+protectedApi.use("/agents", agentRoutes);
+protectedApi.use("/vesselOwners", vesselOwnerRoutes);
+protectedApi.use("/vessels", vesselRoutes);
+protectedApi.use("/candidates", candidateRoutes);
+protectedApi.use("/files", filesRoutes);
+protectedApi.use("/feedbacks", feedbackRoutes);
+server.use(protectedApi);
 
 server.get("/", (req, res) => {
   res.status(200).json({ message: "running" });

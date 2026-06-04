@@ -61,6 +61,21 @@ export function countVesselFiles(entity = {}) {
   );
 }
 
+function buildDocumentSectionsFromFields(fields, getDoc, iconMap = {}) {
+  return fields
+    .map(({ key, title }) => {
+      const normalized = normalizeDocSection(getDoc(key));
+      if (!normalized) return null;
+      return {
+        key,
+        title,
+        icon: iconMap[key] ?? null,
+        documents: normalized,
+      };
+    })
+    .filter(Boolean);
+}
+
 const CANDIDATE_DOC_FIELDS = [
   { key: "resume", title: "Resume/CV" },
   { key: "photo", title: "Photograph" },
@@ -75,57 +90,32 @@ const CANDIDATE_DOC_FIELDS = [
 ];
 
 export function buildCandidateDocumentSections(documents, iconMap = {}) {
-  return CANDIDATE_DOC_FIELDS.map(({ key, title }) => {
-    const normalized = normalizeDocSection(documents?.[key]);
-    if (!normalized) return null;
-    return {
-      key,
-      title,
-      icon: iconMap[key] ?? null,
-      documents: normalized,
-    };
-  }).filter(Boolean);
+  return buildDocumentSectionsFromFields(
+    CANDIDATE_DOC_FIELDS,
+    (key) => documents?.[key],
+    iconMap,
+  );
 }
 
 export function buildVesselOwnerDocumentSections(entity, iconMap = {}) {
-  const fields = [
-    { key: "company_logo", title: "Company Logo", doc: entity?.company_logo },
-    { key: "contract", title: "Contract", doc: entity?.contract },
-    { key: "license", title: "License", doc: entity?.license },
-  ];
-  return fields
-    .map(({ key, title, doc }) => {
-      const normalized = normalizeDocSection(doc);
-      if (!normalized) return null;
-      return {
-        key,
-        title,
-        icon: iconMap[key] ?? null,
-        documents: normalized,
-      };
-    })
-    .filter(Boolean);
+  return buildDocumentSectionsFromFields(
+    [
+      { key: "company_logo", title: "Company Logo" },
+      { key: "contract", title: "Contract" },
+      { key: "license", title: "License" },
+    ],
+    (key) => entity?.[key],
+    iconMap,
+  );
 }
 
 export function buildVesselDocumentSections(entity, iconMap = {}) {
-  const fields = [
-    { key: "vessel_image", title: "Vessel Image", doc: entity?.vessel_image },
-    {
-      key: "vessel_documents",
-      title: "Vessel Documents",
-      doc: entity?.vessel_documents,
-    },
-  ];
-  return fields
-    .map(({ key, title, doc }) => {
-      const normalized = normalizeDocSection(doc);
-      if (!normalized) return null;
-      return {
-        key,
-        title,
-        icon: iconMap[key] ?? null,
-        documents: normalized,
-      };
-    })
-    .filter(Boolean);
+  return buildDocumentSectionsFromFields(
+    [
+      { key: "vessel_image", title: "Vessel Image" },
+      { key: "vessel_documents", title: "Vessel Documents" },
+    ],
+    (key) => entity?.[key],
+    iconMap,
+  );
 }

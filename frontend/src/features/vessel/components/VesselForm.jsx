@@ -5,6 +5,7 @@ import { createVesselAsync, updateVesselByIdAsync } from "../VesselSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
+import { getErrorMessage } from "../../../utils/getErrorMessage";
 
 // Validation Schema
 const vesselSchema = yup
@@ -144,7 +145,7 @@ const VesselForm = ({
         onClose();
         return;
       }
-      toast.error(error?.message || "Failed to save vessel");
+      toast.error(getErrorMessage(error, "Failed to save vessel"));
     }
   };
 

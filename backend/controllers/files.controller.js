@@ -5,14 +5,19 @@ const { getS3ObjectStream } = require("../aws/s3/objectStream");
 const { createPresignedPutUpload } = require("../aws/s3/presignUpload.service");
 const { uploadFileToS3 } = require("../aws/s3/uploadKey.service");
 const { isS3ObjectKey } = require("../utils/fileRef");
+const { assertCanAccessFilePath } = require("../middleware/fileAccessAuth");
 
-/** Redirect browser to presigned S3 download URL. */
-exports.access = asyncHandler(async (req, res) => {
-  const filePath = req.query.path;
-  if (!filePath) throw new AppError(400, "path query parameter is required");
+function resolveValidatedFilePath(req) {
+  const filePath = assertCanAccessFilePath(req, req.query.path);
   if (!isS3ObjectKey(filePath)) {
     throw new AppError(400, "Invalid file path");
   }
+  return filePath;
+}
+
+/** Redirect browser to presigned S3 download URL. */
+exports.access = asyncHandler(async (req, res) => {
+  const filePath = resolveValidatedFilePath(req);
   const url = await resolveAccessUrl(filePath);
   if (!url) throw new AppError(404, "File not found");
   return res.redirect(url);
@@ -23,11 +28,7 @@ exports.access = asyncHandler(async (req, res) => {
  * Use for <img src> — redirects from /files/access often fail in Avatar/img tags.
  */
 exports.stream = asyncHandler(async (req, res) => {
-  const filePath = req.query.path;
-  if (!filePath) throw new AppError(400, "path query parameter is required");
-  if (!isS3ObjectKey(filePath)) {
-    throw new AppError(400, "Invalid file path");
-  }
+  const filePath = resolveValidatedFilePath(req);
 
   let obj;
   try {
@@ -82,8 +83,7 @@ exports.presignUpload = asyncHandler(async (req, res) => {
 
 /** JSON presign for clients that need the URL without redirect. */
 exports.presign = asyncHandler(async (req, res) => {
-  const filePath = req.query.path;
-  if (!filePath) throw new AppError(400, "path query parameter is required");
+  const filePath = resolveValidatedFilePath(req);
   const url = await resolveAccessUrl(filePath);
   if (!url) throw new AppError(404, "File not found");
   res.json({ url, path: filePath });

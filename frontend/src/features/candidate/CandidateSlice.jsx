@@ -1,4 +1,5 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { createApiThunk } from "../../config/thunkHelpers";
 import {
   createCandidate,
   fetchCandidates,
@@ -59,81 +60,39 @@ const initialState = {
   error: null,
 };
 
-export const fetchCandidatesAsync = createAsyncThunk(
+export const fetchCandidatesAsync = createApiThunk(
   "candidates/fetch",
-  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
-    try {
-      return await fetchCandidates(params, signal);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  ({ params = {}, signal } = {}) => fetchCandidates(params, signal),
 );
 
-export const createCandidateAsync = createAsyncThunk(
+export const createCandidateAsync = createApiThunk(
   "candidates/create",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await createCandidate(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => createCandidate(payload),
 );
 
-export const updateCandidateByIdAsync = createAsyncThunk(
+export const updateCandidateByIdAsync = createApiThunk(
   "candidates/update",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateCandidateById(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => updateCandidateById(payload),
 );
 
-export const fetchCandidateByIdAsync = createAsyncThunk(
+export const fetchCandidateByIdAsync = createApiThunk(
   "candidates/getById",
-  async (id, { rejectWithValue }) => {
-    try {
-      return await getCandidateById(id);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (id) => getCandidateById(id),
 );
 
-export const toggleCandidateStatusAsync = createAsyncThunk(
+export const toggleCandidateStatusAsync = createApiThunk(
   "candidates/toggleStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await toggleCandidateStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => toggleCandidateStatus(payload),
 );
 
-export const updateCandidateWorkStatusAsync = createAsyncThunk(
+export const updateCandidateWorkStatusAsync = createApiThunk(
   "candidates/updateWorkStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateCandidateWorkStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => updateCandidateWorkStatus(payload),
 );
 
-export const fetchAvailableCandidatesAsync = createAsyncThunk(
+export const fetchAvailableCandidatesAsync = createApiThunk(
   "candidates/fetchAvailable",
-  async (params = {}, { rejectWithValue }) => {
-    try {
-      return await getAvailableCandidates(params);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (params = {}) => getAvailableCandidates(params),
 );
 
 const candidateSlice = createSlice({

@@ -7,6 +7,7 @@ import {
 } from "../../vesselOwner/VesselOwnerSlice";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
+import { getErrorMessage } from "../../../utils/getErrorMessage";
 import { toast } from "react-toastify";
 
 // Validation Schema
@@ -207,7 +208,7 @@ const VesselOwnerForm = ({ formId, initialData: initialDataProp = null, onClose 
         onClose();
         return;
       }
-      toast.error(error?.message || "Failed to save vessel owner");
+      toast.error(getErrorMessage(error, "Failed to save vessel owner"));
     }
   };
 

@@ -7,6 +7,7 @@ const { buildListResponse } = require("../utils/ListResponseBuilder");
 const { sendMail } = require("../utils/Emails");
 const { hashPlaceholderPassword } = require("../utils/placeholderPassword");
 const { STATUS } = require("../utils/userStatus");
+const { INDUSTRY_TYPES } = require("../models/schemas/industryTypes");
 const {
   prepareAndQueueAgencyAdminWelcome,
 } = require("../services/email/emailNotification.service");
@@ -38,10 +39,9 @@ exports.create = async (req, res) => {
       });
     }
 
-    const allowedIndustries = ["maritime", "healthcare", "construction", "hospitality", "other"];
-    if (!allowedIndustries.includes(industryType)) {
+    if (!INDUSTRY_TYPES.includes(industryType)) {
       return res.status(400).json({
-        message: `Invalid industry type. Allowed values: ${allowedIndustries.join(", ")}`,
+        message: `Invalid industry type. Allowed values: ${INDUSTRY_TYPES.join(", ")}`,
       });
     }
 

@@ -16,7 +16,6 @@ import {
   setSearchValue,
   fetchVesselOwnersAsync,
   toggleVesselOwnerStatusAsync,
-  resetVesselOwnerTableState,
 } from "../../vesselOwner/VesselOwnerSlice";
 import {
   Button,
@@ -43,6 +42,7 @@ import {
   DialogActions,
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DirectionsBoatFilledOutlinedIcon from "@mui/icons-material/DirectionsBoatFilledOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -86,6 +86,7 @@ export const VesselOwners = () => {
   const [editData, setEditData] = useState(null);
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
   const [entityForFilesDialog, setEntityForFilesDialog] = useState(null);
+  const formSubmitting = useFormSubmitting("vesselOwner-form");
 
   const vesselOwnerFileSections = useMemo(
     () =>
@@ -165,7 +166,7 @@ export const VesselOwners = () => {
     }
 
     if (updateStatus === "rejected") {
-      toast.error("Failed to update vessel status");
+      toast.error("Failed to update vessel owner status");
       dispatch(resetStatuses());
     }
   }, [updateStatus, dispatch]);
@@ -503,7 +504,7 @@ export const VesselOwners = () => {
               py: 2,
             }}
           >
-            <Button variant="outlined" onClick={handleCloseModal}>
+            <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
               Cancel
             </Button>
 
@@ -511,8 +512,8 @@ export const VesselOwners = () => {
               type="submit"
               form="vesselOwner-form"
               variant="contained"
-              loading={createStatus === "pending" || updateStatus === "pending"}
-              disabled={createStatus === "pending" || updateStatus === "pending"}
+              loading={formSubmitting}
+              disabled={formSubmitting}
             >
               {editData ? "Update" : "Create"}
             </LoadingButton>

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
+const { INDUSTRY_TYPES } = require("./schemas/industryTypes");
 
 const candidateSchema = new Schema(
   {
@@ -18,7 +19,7 @@ const candidateSchema = new Schema(
     },
     industryType: {
       type: String,
-      enum: ["maritime", "healthcare", "construction", "hospitality", "other"],
+      enum: INDUSTRY_TYPES,
       required: true,
       default: "maritime",
       index: true,

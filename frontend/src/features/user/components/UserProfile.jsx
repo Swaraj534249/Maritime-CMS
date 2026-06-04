@@ -139,6 +139,8 @@ export const UserProfile = () => {
 
   const user = profile || loggedInUser;
   const badgeLabel = getProfileBadgeLabel(user);
+  const canEditProfile =
+    user?.role !== "AGENT" || user?.status === "active";
 
   const handleProfileUpdate = async ({ id, data, s3Uploads }) => {
     if (s3Uploads?.avatar?.key) {
@@ -189,14 +191,16 @@ export const UserProfile = () => {
                   </Typography>
                 )}
               </Stack>
-              <Button
-                variant="outlined"
-                startIcon={<EditOutlinedIcon />}
-                onClick={() => setEditOpen(true)}
-                sx={{ textTransform: "none" }}
-              >
-                Edit profile
-              </Button>
+              {canEditProfile && (
+                <Button
+                  variant="outlined"
+                  startIcon={<EditOutlinedIcon />}
+                  onClick={() => setEditOpen(true)}
+                  sx={{ textTransform: "none" }}
+                >
+                  Edit profile
+                </Button>
+              )}
             </Stack>
           </Paper>
         </Grid>
