@@ -27,6 +27,8 @@ const vesselRoutes = require("./routes/vessel.route");
 const candidateRoutes = require("./routes/candidate.route");
 const filesRoutes = require("./routes/files.route");
 const feedbackRoutes = require("./routes/feedback.route");
+const rankRoutes = require("./routes/rank.route");
+const vesselTypeRoutes = require("./routes/vesselType.route");
 
 const { connectToDB } = require("./database/db");
 const { errorHandler } = require("./middleware/errorHandler");
@@ -62,6 +64,8 @@ protectedApi.use("/vessels", vesselRoutes);
 protectedApi.use("/candidates", candidateRoutes);
 protectedApi.use("/files", filesRoutes);
 protectedApi.use("/feedbacks", feedbackRoutes);
+protectedApi.use("/ranks", rankRoutes);
+protectedApi.use("/vesselTypes", vesselTypeRoutes);
 server.use(protectedApi);
 
 server.get("/", (req, res) => {

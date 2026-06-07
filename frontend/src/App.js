@@ -31,6 +31,7 @@ import { AgencyManagementPage } from "./pages/AgencyManagementPage";
 import { CandidatesPage } from "./pages/CandidatesPage";
 import { CandidatesFormPage } from "./pages/CandidatesFormPage";
 import { FeedbacksPage } from "./pages/FeedbacksPage";
+import { AssetsPage } from "./pages/AssetsPage";
 import { AgentOnboardingPage } from "./pages/AgentOnboardingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import {
@@ -155,6 +156,14 @@ const appRoutes = createRoutesFromElements(
           element={
             <AgentProtected>
               <FeedbacksPage />
+            </AgentProtected>
+          }
+        />
+        <Route
+          path="/assets"
+          element={
+            <AgentProtected>
+              <AssetsPage />
             </AgentProtected>
           }
         />

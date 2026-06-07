@@ -24,15 +24,20 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import WorkIcon from "@mui/icons-material/Work";
 import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
+import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
+import { useNavigate } from "react-router-dom";
 import { FeedbackForm } from "../../feedback/components/FeedbackForm";
 
 export const Navbar = ({ sidebarWidth, onMenuToggle }) => {
   const [anchorElUser, setAnchorElUser] = React.useState(null);
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
+  const navigate = useNavigate();
   const loggedInUser = useSelector(selectLoggedInUser);
   const userRole = useSelector(selectUserRole);
   const canSubmitFeedback =
+    userRole === "AGENCY_ADMIN" || userRole === "AGENT";
+  const canManageAssets =
     userRole === "AGENCY_ADMIN" || userRole === "AGENT";
 
   const showOurFeedbacks =
@@ -101,6 +106,19 @@ export const Navbar = ({ sidebarWidth, onMenuToggle }) => {
           <Box sx={{ flexGrow: 1 }} />
 
           <Stack direction="row" spacing={1} alignItems="center" sx={{ zIndex: 1 }}>
+            {canManageAssets && (
+              <Tooltip title="Manage ranks & vessel types">
+                <Button
+                  color="inherit"
+                  startIcon={<CategoryOutlinedIcon />}
+                  onClick={() => navigate("/assets")}
+                  sx={{ textTransform: "none" }}
+                >
+                  Assets
+                </Button>
+              </Tooltip>
+            )}
+
             {canSubmitFeedback && (
               <Tooltip title="Submit feedback">
                 <Button

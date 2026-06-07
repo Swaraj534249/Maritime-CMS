@@ -7,6 +7,8 @@ import VesselOwnerSlice from "../features/vesselOwner/VesselOwnerSlice";
 import VesselSlice from "../features/vessel/VesselSlice";
 import CandidateSlice from "../features/candidate/CandidateSlice";
 import FeedbackSlice from "../features/feedback/FeedbackSlice";
+import RankSlice from "../features/assets/rank/RankSlice";
+import VesselTypeSlice from "../features/assets/vesselType/VesselTypeSlice";
 
 export const store = configureStore({
   reducer: {
@@ -18,5 +20,7 @@ export const store = configureStore({
     VesselSlice,
     CandidateSlice,
     FeedbackSlice,
+    RankSlice,
+    VesselTypeSlice,
   },
 });
