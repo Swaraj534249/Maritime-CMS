@@ -64,6 +64,10 @@ const agencySchema = new Schema(
       type: Number,
       default: 0,
     },
+    vacancyCounter: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true, // adds createdAt and updatedAt

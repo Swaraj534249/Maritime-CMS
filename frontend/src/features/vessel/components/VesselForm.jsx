@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import * as yup from "yup";
 import { createVesselAsync, updateVesselByIdAsync } from "../VesselSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { fetchVesselTypes } from "../../assets/vesselType/VesselTypeApi";
 import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
 import { getErrorMessage } from "../../../utils/getErrorMessage";
 
@@ -39,7 +40,8 @@ const vesselFields = [
   {
     name: "vesseltype",
     label: "Type",
-    type: "text",
+    type: "select",
+    options: [],
     gridSize: { xs: 12, sm: 6 },
   },
   {
@@ -82,6 +84,34 @@ const VesselForm = ({
 }) => {
   const dispatch = useDispatch();
   const isEditMode = Boolean(initialData?._id);
+  const [vesselTypeOptions, setVesselTypeOptions] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await fetchVesselTypes({
+          all: "true",
+          activeOnly: "true",
+        });
+        if (active) setVesselTypeOptions((data || []).map((v) => v.typeName));
+      } catch (err) {
+        // Non-blocking: dropdown will stay empty if vessel types fail to load
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fields = useMemo(() => {
+    const opts = [...vesselTypeOptions];
+    const current = initialData?.vesseltype;
+    if (current && !opts.includes(current)) opts.unshift(current);
+    return vesselFields.map((field) =>
+      field.name === "vesseltype" ? { ...field, options: opts } : field,
+    );
+  }, [vesselTypeOptions, initialData?.vesseltype]);
 
   const defaultValues = {
     vesselname: initialData?.vesselname || "",
@@ -152,7 +182,7 @@ const VesselForm = ({
   return (
     <DynamicFormBuilder
       formId={formId}
-      fields={vesselFields}
+      fields={fields}
       validationSchema={vesselSchema}
       defaultValues={defaultValues}
       onSubmit={handleFormSubmit}

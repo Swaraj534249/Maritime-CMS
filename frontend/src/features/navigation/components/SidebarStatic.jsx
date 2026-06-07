@@ -15,6 +15,7 @@ import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import PersonIcon from "@mui/icons-material/Person";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import { selectUserRole } from "../../auth/AuthSlice";
 
 export const SidebarStatic = ({ expanded = false }) => {
@@ -47,11 +48,13 @@ export const SidebarStatic = ({ expanded = false }) => {
         { name: "Agents", to: "/agency/agents", icon: <PeopleIcon /> },
         { name: "Candidates", to: "/candidates", icon: <PersonIcon /> },
         { name: "Vessel Owners", to: "/vessel-owners", icon: <BusinessIcon /> },
+        { name: "Vacancies", to: "/vacancies", icon: <WorkOutlineIcon /> },
       ],
       AGENT: [
         dashboardItem,
         { name: "Candidates", to: "/candidates", icon: <PersonIcon /> },
         { name: "Vessel Owners", to: "/vessel-owners", icon: <BusinessIcon /> },
+        { name: "Vacancies", to: "/vacancies", icon: <WorkOutlineIcon /> },
       ],
     };
     return baseItems[userRole] || [dashboardItem];

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import * as yup from "yup";
@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { Box, CircularProgress, Typography, Alert } from "@mui/material";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 import { parseResume } from "../CandidateApi";
+import { fetchRanks } from "../../assets/rank/RankApi";
 import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
 import { getErrorMessage } from "../../../utils/getErrorMessage";
 import { getFileSizeError } from "../../../utils/fileUtils";
@@ -190,7 +191,8 @@ const candidateFields = [
   {
     name: "rank",
     label: "Rank/Position",
-    type: "text",
+    type: "select",
+    options: [],
     gridSize: { xs: 12, sm: 6 },
   },
   {
@@ -336,6 +338,31 @@ const CandidateForm = ({
   const dispatch = useDispatch();
   const [isParsing, setIsParsing] = useState(false);
   const [parseMessage, setParseMessage] = useState(null);
+  const [rankOptions, setRankOptions] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await fetchRanks({ all: "true", activeOnly: "true" });
+        if (active) setRankOptions((data || []).map((r) => r.rankName));
+      } catch (err) {
+        // Non-blocking: dropdown will stay empty if ranks fail to load
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fields = useMemo(() => {
+    const opts = [...rankOptions];
+    const current = initialData?.rank;
+    if (current && !opts.includes(current)) opts.unshift(current);
+    return candidateFields.map((field) =>
+      field.name === "rank" ? { ...field, options: opts } : field,
+    );
+  }, [rankOptions, initialData?.rank]);
 
   const defaultValues = {
     firstName: initialData?.firstName || "",
@@ -526,7 +553,7 @@ const CandidateForm = ({
 
       <DynamicFormBuilder
         formId={formId}
-        fields={candidateFields}
+        fields={fields}
         validationSchema={candidateSchema}
         defaultValues={defaultValues}
         onSubmit={handleFormSubmit}
