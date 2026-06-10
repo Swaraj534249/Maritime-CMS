@@ -5,6 +5,7 @@ const User = require("../../models/User");
 const { AppError } = require("../../errors/AppError");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
+const { computeStatusCounts } = require("../../utils/statusCounts");
 const { buildTicketPrefix, formatTicketId } = require("../../utils/feedbackTicketId");
 const {
   queueFeedbackSubmittedEmail,
@@ -158,6 +159,7 @@ async function list(req) {
     sortField = "createdAt",
     sortOrder = "desc",
     searchValue = "",
+    status,
   } = req.query;
 
   const pageNumber = Math.max(1, parseInt(page, 10) || 1);
@@ -170,6 +172,7 @@ async function list(req) {
     }
     extraFilter.agencyId = req.user.agencyId;
   }
+  if (status) extraFilter.status = status;
 
   const { queryFilter, skip, sort } = buildListQuery({
     Model: Feedback,
@@ -197,6 +200,30 @@ async function list(req) {
     sortOrder,
     aggregates: {},
     context: {},
+  });
+}
+
+async function statusCounts(req) {
+  const { searchValue = "" } = req.query;
+  const extraFilter = {};
+  if (req.user.role !== "SUPER_ADMIN") {
+    if (!req.user.agencyId) {
+      throw new AppError(400, "Agency context is required");
+    }
+    extraFilter.agencyId = req.user.agencyId;
+  }
+  const { queryFilter } = buildListQuery({
+    Model: Feedback,
+    searchValue,
+    searchFields: ["ticketId", "title", "category", "submittedBy.email", "submittedBy.name"],
+    page: 1,
+    pageSize: 1,
+    extraFilter,
+  });
+  return computeStatusCounts({
+    Model: Feedback,
+    matchFilter: queryFilter,
+    field: "status",
   });
 }
 
@@ -335,6 +362,7 @@ async function updateById(req) {
 module.exports = {
   submit,
   list,
+  statusCounts,
   getById,
   updateById,
   FEEDBACK_STATUSES,

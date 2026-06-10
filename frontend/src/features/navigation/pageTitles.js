@@ -12,6 +12,7 @@ const ROUTE_TITLES = [
   ["/feedbacks", "Our Feedbacks"],
   ["/assets", "Assets"],
   ["/vacancies", "Vacancies"],
+  ["/proposed", "Proposed Candidates"],
   ["/dashboard", "Dashboard"],
   ["/profile", "Profile"],
   ["/agent/onboarding", "Complete your profile"],

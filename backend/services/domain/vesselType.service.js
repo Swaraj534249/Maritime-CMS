@@ -1,6 +1,7 @@
 const VesselType = require("../../models/VesselType");
 const { AppError } = require("../../errors/AppError");
 const { assertUniqueWithinAgency } = require("../../utils/tenantUniqueness");
+const { toTitleCase } = require("../../utils/textCase");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
 
@@ -20,7 +21,7 @@ function scopedQuery(req, extra = {}) {
 }
 
 async function create(req) {
-  const typeName = (req.body?.typeName || "").trim();
+  const typeName = toTitleCase(req.body?.typeName);
   if (!typeName) throw new AppError(400, "Vessel type name is required");
 
   const agencyId = resolveAgencyId(req);
@@ -34,6 +35,7 @@ async function create(req) {
         field: "typeName",
         value: typeName,
         message: "This vessel type already exists in your agency",
+        caseInsensitive: true,
       },
     ],
   });
@@ -125,7 +127,7 @@ async function updateById(req) {
   const data = {};
 
   if (req.body?.typeName !== undefined) {
-    const typeName = (req.body.typeName || "").trim();
+    const typeName = toTitleCase(req.body.typeName);
     if (!typeName) throw new AppError(400, "Vessel type name is required");
     await assertUniqueWithinAgency({
       Model: VesselType,
@@ -136,6 +138,7 @@ async function updateById(req) {
           field: "typeName",
           value: typeName,
           message: "This vessel type already exists in your agency",
+          caseInsensitive: true,
         },
       ],
     });

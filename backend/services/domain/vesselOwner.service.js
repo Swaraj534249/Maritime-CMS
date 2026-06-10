@@ -4,6 +4,7 @@ const { AppError } = require("../../errors/AppError");
 const { deleteFile } = require("../../middleware/upload");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
+const { facetPaginate } = require("../../utils/facetList");
 const { enrichDeep } = require("../../aws/s3/fileAccess.service");
 const {
   processPresignedUploads,
@@ -56,6 +57,7 @@ async function create(req) {
 
   try {
     const created = await new VesselOwner(data).save();
+    await created.populate({ path: "addedBy", select: "name" });
     return enrichDeep(created);
   } catch (error) {
     if (error instanceof AppError) throw error;
@@ -116,14 +118,17 @@ async function list(req) {
     return Promise.all(data.map((row) => enrichDeep(row)));
   }
 
-  const [data, totalRecords] = await Promise.all([
-    VesselOwner.find(queryFilter)
-      .skip(skip)
-      .limit(pageSizeNumber)
-      .sort(sort)
-      .lean(),
-    VesselOwner.countDocuments(queryFilter),
-  ]);
+  const { data, totalRecords } = await facetPaginate({
+    Model: VesselOwner,
+    matchFilter: queryFilter,
+    sort,
+    skip,
+    limit: pageSizeNumber,
+    populate: [
+      { path: "addedBy", select: "name" },
+      { path: "updatedBy", select: "name" },
+    ],
+  });
 
   const ownerIds = data.map((o) => o._id);
   const vesselCounts = await Vessel.aggregate([
@@ -141,10 +146,8 @@ async function list(req) {
     if (v._id) vesselCountByOwner[v._id.toString()] = v.count;
   });
 
-  const enrichedData = await Promise.all(data.map((row) => enrichDeep(row)));
-
   return buildListResponse({
-    data: enrichedData,
+    data,
     page: pageNumber,
     pageSize: pageSizeNumber,
     totalRecords,
@@ -222,10 +225,21 @@ async function updateById(req) {
 
   delete data.s3_uploads;
 
+  // The file-attach PATCH of a fresh create must not count as an edit.
+  const isInitialFileUpload = data.__initialFileUpload === "true";
+  delete data.__initialFileUpload;
+  if (!isInitialFileUpload) {
+    data.updatedBy = req.user?._id;
+    data.lastEditedAt = new Date();
+  }
+
   try {
     const updated = await VesselOwner.findOneAndUpdate(query, data, {
       new: true,
-    });
+    }).populate([
+      { path: "addedBy", select: "name" },
+      { path: "updatedBy", select: "name" },
+    ]);
     return enrichDeep(updated);
   } catch (error) {
     if (req.presignedUploads) await cleanupPresignedUploads(req.presignedUploads);

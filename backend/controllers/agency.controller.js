@@ -52,6 +52,18 @@ exports.create = async (req, res) => {
       });
     }
 
+    const trimmedShortName = shortName?.trim();
+    if (trimmedShortName) {
+      const dupShortName = await Agency.findOne({
+        shortName: new RegExp(`^${trimmedShortName}$`, "i"),
+      });
+      if (dupShortName) {
+        return res.status(400).json({
+          message: "Agency with this short name already exists",
+        });
+      }
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -295,6 +307,22 @@ exports.updateById = async (req, res) => {
 
     const passwordUpdate = updates.password;
     delete updates.password;
+
+    if (updates.shortName !== undefined) {
+      const trimmed = (updates.shortName || "").trim();
+      updates.shortName = trimmed || undefined;
+      if (trimmed) {
+        const dupShortName = await Agency.findOne({
+          _id: { $ne: id },
+          shortName: new RegExp(`^${trimmed}$`, "i"),
+        });
+        if (dupShortName) {
+          return res.status(400).json({
+            message: "Agency with this short name already exists",
+          });
+        }
+      }
+    }
 
     const industryTypeChanged = updates.industryType && updates.industryType !== undefined;
     const newIndustryType = updates.industryType;

@@ -10,6 +10,8 @@ const {
 const { hasStoredFile } = require("../../utils/versionedDocument");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
+const { facetPaginate } = require("../../utils/facetList");
+const { computeStatusCounts } = require("../../utils/statusCounts");
 const resumeParser = require("../../utils/ResumeParser");
 const { enrichDeep } = require("../../aws/s3/fileAccess.service");
 const { assertUniqueWithinAgency, normalizeCheckValue } = require("../../utils/tenantUniqueness");
@@ -236,44 +238,30 @@ async function list(req) {
         .populate("addedBy", "name email")
         .sort(sort)
         .lean();
-      return Promise.all(data.map((row) => enrichDeep(row)));
+      return buildListResponse({
+        data,
+        page: 1,
+        pageSize: data.length || 1,
+        totalRecords: data.length,
+        searchValue,
+        sortField,
+        sortOrder,
+      });
     }
 
-    const [data, totalRecords] = await Promise.all([
-      Candidate.find(queryFilter)
-        .populate("agencyId", "name email industryType")
-        .populate("addedBy", "name email")
-        .skip(skip)
-        .limit(pageSizeNumber)
-        .sort(sort)
-        .lean(),
-      Candidate.countDocuments(queryFilter),
-    ]);
-
-    // Calculate aggregates
-    const [
-      activeCount,
-      inactiveCount,
-      availableCount,
-      onboardCount,
-      statusGroups,
-      rankGroups,
-    ] = await Promise.all([
-      Candidate.countDocuments({ ...extraFilter, isActive: true }),
-      Candidate.countDocuments({ ...extraFilter, isActive: false }),
-      Candidate.countDocuments({ ...extraFilter, currentStatus: "Available" }),
-      Candidate.countDocuments({ ...extraFilter, currentStatus: "Onboard" }),
-      Candidate.aggregate([
-        { $match: extraFilter },
-        { $group: { _id: "$currentStatus", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ]),
-      Candidate.aggregate([
-        { $match: extraFilter },
-        { $group: { _id: "$rank", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ]),
-    ]);
+    // Page data + total in a single aggregation round-trip.
+    const { data, totalRecords } = await facetPaginate({
+      Model: Candidate,
+      matchFilter: queryFilter,
+      sort,
+      skip,
+      limit: pageSizeNumber,
+      populate: [
+        { path: "agencyId", select: "name email industryType" },
+        { path: "addedBy", select: "name email" },
+        { path: "updatedBy", select: "name" },
+      ],
+    });
 
     // Get agency context if applicable
     let agencyContext = null;
@@ -287,37 +275,67 @@ async function list(req) {
       }
     }
 
-    const enrichedData = await Promise.all(data.map((row) => enrichDeep(row)));
-
     return buildListResponse({
-        data: enrichedData,
-        page: pageNumber,
-        pageSize: pageSizeNumber,
-        totalRecords,
-        searchValue,
-        sortField,
-        sortOrder,
-        aggregates: {
-          counts: {
-            total: totalRecords,
-            active: activeCount,
-            inactive: inactiveCount,
-            available: availableCount,
-            onboard: onboardCount,
-          },
-          byStatus: statusGroups,
-          byRank: rankGroups,
-        },
-        context: {
-          agency: agencyContext,
-          viewMode: userRole === "SUPER_ADMIN" ? "super-admin" : "agency",
-        },
-      });
+      data,
+      page: pageNumber,
+      pageSize: pageSizeNumber,
+      totalRecords,
+      searchValue,
+      sortField,
+      sortOrder,
+      context: {
+        agency: agencyContext,
+        viewMode: userRole === "SUPER_ADMIN" ? "super-admin" : "agency",
+      },
+    });
   } catch (error) {
     if (error instanceof AppError) throw error;
     console.error("List candidates error:", error);
     throw new AppError(500, "Failed to fetch candidates");
   }
+}
+
+/**
+ * Status counts for the candidate status dropdown. Computed over agency +
+ * search only (not the selected status), in a single aggregation. Fetched
+ * separately from the list so paginating/sorting doesn't recompute it.
+ */
+async function statusCounts(req) {
+  const { searchValue = "", agencyId: queryAgencyId } = req.query;
+  const userRole = req.user.role;
+  const userAgencyId = req.user.agencyId;
+
+  const extraFilter = {};
+  if (userRole === "SUPER_ADMIN") {
+    if (queryAgencyId) extraFilter.agencyId = queryAgencyId;
+  } else {
+    if (!userAgencyId) throw new AppError(400, "Agency ID not found for user");
+    extraFilter.agencyId = userAgencyId;
+  }
+
+  const { queryFilter } = buildListQuery({
+    Model: Candidate,
+    searchValue,
+    searchFields: [
+      "firstName",
+      "lastName",
+      "email",
+      "phone",
+      "passportNumber",
+      "cdcNumber",
+      "indosNumber",
+      "rank",
+    ],
+    page: 1,
+    pageSize: 1,
+    extraFilter,
+  });
+
+  return computeStatusCounts({
+    Model: Candidate,
+    matchFilter: queryFilter,
+    field: "currentStatus",
+  });
 }
 
 async function getById(req) {
@@ -385,6 +403,10 @@ async function updateById(req) {
     delete updates.documents;
     delete updates.s3_uploads;
 
+    // The file-attach PATCH of a fresh create must not count as an edit.
+    const isInitialFileUpload = updates.__initialFileUpload === "true";
+    delete updates.__initialFileUpload;
+
     if (req.presignedUploads) {
       const uploadedFiles = processPresignedUploads(
         req.presignedUploads,
@@ -437,11 +459,16 @@ async function updateById(req) {
     }
 
     Object.assign(existing, updates);
+    if (!isInitialFileUpload) {
+      existing.updatedBy = req.user?._id;
+      existing.lastEditedAt = new Date();
+    }
     await existing.save();
 
     await existing.populate([
       { path: "agencyId", select: "name email industryType" },
       { path: "addedBy", select: "name email" },
+      { path: "updatedBy", select: "name" },
     ]);
 
     return enrichDeep(existing);
@@ -587,6 +614,7 @@ module.exports = {
   parseResume,
   create,
   list,
+  statusCounts,
   getById,
   updateById,
   toggleStatus,

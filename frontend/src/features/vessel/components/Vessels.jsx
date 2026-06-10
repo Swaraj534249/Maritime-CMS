@@ -5,6 +5,7 @@ import {
   toggleVesselStatusAsync,
   selectTotalCount,
   selectCreateStatus,
+  selectFetchStatus,
   selectUpdateStatus,
   selectVesselOwnerContext,
   selectVessels,
@@ -46,6 +47,7 @@ import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
 import InitialsAvatar from "../../../components/InitialsAvatar/InitialsAvatar";
 import FilesCountChip from "../../../components/Files/FilesCountChip";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
+import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
 import {
   buildVesselDocumentSections,
   countVesselFiles,
@@ -62,6 +64,7 @@ export const Vessels = () => {
   const dispatch = useDispatch();
   const vessels = useSelector(selectVessels);
   const totalCount = useSelector(selectTotalCount);
+  const fetchStatus = useSelector(selectFetchStatus);
   const updateStatus = useSelector(selectUpdateStatus);
   const createStatus = useSelector(selectCreateStatus);
   const owner = useSelector(selectVesselOwnerContext);
@@ -335,6 +338,25 @@ export const Vessels = () => {
       renderCell: renderFilesCell,
     },
     {
+      field: "addedBy",
+      headerName: "Added By",
+      flex: 1.4,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const v = params.row._raw;
+        return (
+          <AddedByCell
+            addedBy={v.addedBy}
+            createdAt={v.createdAt}
+            updatedBy={v.updatedBy}
+            updatedAt={v.lastEditedAt}
+          />
+        );
+      },
+    },
+    {
       field: "actions",
       headerName: "Actions",
       flex: 0.8,
@@ -375,7 +397,16 @@ export const Vessels = () => {
         <DataTable
           rows={rows}
           columns={columns}
-          sx={{ maxWidth: "100%" }}
+          loading={fetchStatus === "pending"}
+          sx={{
+            maxWidth: "100%",
+            "& .MuiDataGrid-cell": {
+              display: "flex",
+              alignItems: "center",
+              py: 0.5,
+            },
+          }}
+          getRowHeight={() => "auto"}
           showToolbar={false}
           paginationModel={paginationModel}
           onPaginationModelChange={handlePaginationModelChange}

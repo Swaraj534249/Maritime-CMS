@@ -4,6 +4,7 @@ const { AppError } = require("../../errors/AppError");
 const { deleteFile } = require("../../middleware/upload");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
+const { facetPaginate } = require("../../utils/facetList");
 const { enrichDeep } = require("../../aws/s3/fileAccess.service");
 const {
   processPresignedUploads,
@@ -46,6 +47,7 @@ async function create(req) {
 
   try {
     const created = await new Vessel(data).save();
+    await created.populate({ path: "addedBy", select: "name" });
     return enrichDeep(created);
   } catch (error) {
     if (error instanceof AppError) throw error;
@@ -116,23 +118,33 @@ async function list(req) {
       .sort(sort)
       .populate("vesselOwner", "company_name company_shortname")
       .lean();
-    return Promise.all(data.map((row) => enrichDeep(row)));
+    return buildListResponse({
+      data,
+      page: 1,
+      pageSize: data.length || 1,
+      totalRecords: data.length,
+      searchValue,
+      sortField,
+      sortOrder,
+      context: { vesselOwner: vesselOwnerContext },
+    });
   }
 
-  const [data, totalRecords] = await Promise.all([
-    Vessel.find(queryFilter)
-      .skip(skip)
-      .limit(pageSizeNumber)
-      .sort(sort)
-      .populate("vesselOwner", "company_name company_shortname")
-      .lean(),
-    Vessel.countDocuments(queryFilter),
-  ]);
-
-  const enrichedData = await Promise.all(data.map((row) => enrichDeep(row)));
+  const { data, totalRecords } = await facetPaginate({
+    Model: Vessel,
+    matchFilter: queryFilter,
+    sort,
+    skip,
+    limit: pageSizeNumber,
+    populate: [
+      { path: "vesselOwner", select: "company_name company_shortname" },
+      { path: "addedBy", select: "name" },
+      { path: "updatedBy", select: "name" },
+    ],
+  });
 
   return buildListResponse({
-    data: enrichedData,
+    data,
     page: pageNumber,
     pageSize: pageSizeNumber,
     totalRecords,
@@ -204,10 +216,20 @@ async function updateById(req) {
 
   delete data.s3_uploads;
 
+  const isInitialFileUpload = data.__initialFileUpload === "true";
+  delete data.__initialFileUpload;
+  if (!isInitialFileUpload) {
+    data.updatedBy = req.user?._id;
+    data.lastEditedAt = new Date();
+  }
+
   try {
     const updated = await Vessel.findOneAndUpdate(query, data, {
       new: true,
-    }).populate("vesselOwner");
+    })
+      .populate("vesselOwner")
+      .populate("addedBy", "name")
+      .populate("updatedBy", "name");
     return enrichDeep(updated);
   } catch (error) {
     if (req.presignedUploads) await cleanupPresignedUploads(req.presignedUploads);

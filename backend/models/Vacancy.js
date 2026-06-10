@@ -21,6 +21,13 @@ const vacancySchema = new Schema(
       ref: "User",
       index: true,
     },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastEditedAt: {
+      type: Date,
+    },
     vacancyId: {
       type: String,
       required: true,

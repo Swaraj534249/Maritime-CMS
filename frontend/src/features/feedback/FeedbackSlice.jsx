@@ -36,9 +36,18 @@ const initialState = {
     paginationModel: { page: 0, pageSize: 10 },
     sortModel: [{ field: "createdAt", sort: "desc" }],
     searchValue: "",
+    statusFilter: "",
   },
   error: null,
 };
+
+export const FEEDBACK_STATUS_OPTIONS = [
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+  { value: "reopened", label: "Reopened" },
+];
 
 export const submitFeedbackAsync = createApiThunk(
   "feedback/submit",
@@ -83,6 +92,9 @@ const feedbackSlice = createSlice({
     },
     setFeedbackSearchValue(state, action) {
       state.ui.searchValue = action.payload;
+    },
+    setFeedbackStatusFilter(state, action) {
+      state.ui.statusFilter = action.payload;
     },
     clearSelectedFeedback(state) {
       state.selected = null;
@@ -139,6 +151,7 @@ export const {
   setFeedbackPaginationModel,
   setFeedbackSortModel,
   setFeedbackSearchValue,
+  setFeedbackStatusFilter,
   clearSelectedFeedback,
 } = feedbackSlice.actions;
 
@@ -155,4 +168,6 @@ export const selectFeedbackUpdateStatus = (state) => base(state).status.update;
 export const selectFeedbackPaginationModel = (state) => base(state).ui.paginationModel;
 export const selectFeedbackSortModel = (state) => base(state).ui.sortModel;
 export const selectFeedbackSearchValue = (state) => base(state).ui.searchValue;
+export const selectFeedbackStatusFilter = (state) =>
+  base(state).ui.statusFilter;
 export const selectSelectedFeedback = (state) => base(state).selected;

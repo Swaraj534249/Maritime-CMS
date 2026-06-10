@@ -5,16 +5,19 @@ import {
   fetchCandidatesAsync,
   toggleCandidateStatusAsync,
   selectTotalCount,
+  selectFetchStatus,
   selectUpdateStatus,
   selectCandidates,
-  selectCandidatesAggregates,
   selectPaginationModel,
   selectSortModel,
   selectSearchValue,
+  selectStatusFilter,
   resetStatuses,
   setPaginationModel,
   setSortModel,
   setSearchValue,
+  setStatusFilter,
+  CANDIDATE_STATUS_OPTIONS,
 } from "../../candidate/CandidateSlice";
 import {
   Stack,
@@ -42,6 +45,9 @@ import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
 import FilesCountChip from "../../../components/Files/FilesCountChip";
 import InitialsAvatar from "../../../components/InitialsAvatar/InitialsAvatar";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
+import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
+import StatusFilter from "../../../components/StatusFilter/StatusFilter";
+import { useStatusCounts } from "../../../hooks/useStatusCounts";
 import { toast } from "react-toastify";
 import { useRowActions } from "../../../hooks/useRowActions";
 import {
@@ -55,11 +61,20 @@ export const Candidates = () => {
   
   const candidates = useSelector(selectCandidates);
   const totalCount = useSelector(selectTotalCount);
+  const fetchStatus = useSelector(selectFetchStatus);
   const updateStatus = useSelector(selectUpdateStatus);
-  const aggregates = useSelector(selectCandidatesAggregates);
   const paginationModel = useSelector(selectPaginationModel);
   const sortModel = useSelector(selectSortModel);
   const searchValue = useSelector(selectSearchValue);
+  const statusFilter = useSelector(selectStatusFilter);
+
+  const {
+    total: statusTotal,
+    byStatus: statusByCount,
+    refetch: refetchStatusCounts,
+  } = useStatusCounts("candidates", {
+    params: searchValue ? { searchValue } : {},
+  });
 
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
   const [documentsForDialog, setDocumentsForDialog] = useState(null);
@@ -106,12 +121,14 @@ export const Candidates = () => {
     sortField,
     sortOrder,
     searchValue,
+    currentStatus,
     controller
   ) => {
     const params = { page: pageOneBased, limit };
     if (sortField) params.sortField = sortField;
     if (sortOrder) params.sortOrder = sortOrder;
     if (searchValue) params.searchValue = searchValue;
+    if (currentStatus) params.currentStatus = currentStatus;
     dispatch(fetchCandidatesAsync({ params, signal: controller }));
   };
 
@@ -123,23 +140,35 @@ export const Candidates = () => {
     const sortField = sort ? sortFieldMap[sort.field] || sort.field : undefined;
     const sortOrder = sort ? sort.sort : undefined;
 
-    fetchPage(page1, limit, sortField, sortOrder, searchValue, controller.signal);
+    fetchPage(
+      page1,
+      limit,
+      sortField,
+      sortOrder,
+      searchValue,
+      statusFilter,
+      controller.signal,
+    );
 
     return () => {
       controller.abort();
     };
-  }, [paginationModel, sortModel, searchValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginationModel, sortModel, searchValue, statusFilter]);
 
   useEffect(() => {
     if (updateStatus === "fulfilled") {
       toast.success("Candidate status updated successfully");
       dispatch(resetStatuses());
+      // A toggle can change the per-status counts.
+      refetchStatusCounts();
     }
 
     if (updateStatus === "rejected") {
       toast.error("Failed to update candidate status");
       dispatch(resetStatuses());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateStatus, dispatch]);
 
   const handleAddNew = () => {
@@ -172,6 +201,11 @@ export const Candidates = () => {
   const handleSearch = (text) => {
     if (text === searchValue) return;
     dispatch(setSearchValue(text));
+    dispatch(setPaginationModel({ ...paginationModel, page: 0 }));
+  };
+
+  const handleStatusFilter = (value) => {
+    dispatch(setStatusFilter(value));
     dispatch(setPaginationModel({ ...paginationModel, page: 0 }));
   };
 
@@ -336,6 +370,25 @@ export const Candidates = () => {
       renderCell: renderStatusCell,
     },
     {
+      field: "addedBy",
+      headerName: "Added By",
+      flex: 1.4,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const c = params.row._raw;
+        return (
+          <AddedByCell
+            addedBy={c.addedBy}
+            createdAt={c.createdAt}
+            updatedBy={c.updatedBy}
+            updatedAt={c.lastEditedAt}
+          />
+        );
+      },
+    },
+    {
       field: "actions",
       headerName: "Actions",
       flex: 0.8,
@@ -354,25 +407,13 @@ export const Candidates = () => {
         <ListPageHeader
           actions={
             <>
-              {aggregates && (
-                <>
-                  <Chip
-                    label={`Total: ${aggregates.counts.total || 0}`}
-                    size="small"
-                    variant="outlined"
-                  />
-                  <Chip
-                    label={`Available: ${aggregates.counts.available || 0}`}
-                    size="small"
-                    color="success"
-                  />
-                  <Chip
-                    label={`Onboard: ${aggregates.counts.onboard || 0}`}
-                    size="small"
-                    color="info"
-                  />
-                </>
-              )}
+              <StatusFilter
+                value={statusFilter}
+                onChange={handleStatusFilter}
+                options={CANDIDATE_STATUS_OPTIONS}
+                counts={statusByCount}
+                allCount={statusTotal}
+              />
               <Search
                 value={searchValue}
                 onDebouncedChange={(v) => handleSearch(v)}
@@ -395,7 +436,16 @@ export const Candidates = () => {
         <DataTable
           rows={rows}
           columns={columns}
-          sx={{ maxWidth: "100%" }}
+          loading={fetchStatus === "pending"}
+          sx={{
+            maxWidth: "100%",
+            "& .MuiDataGrid-cell": {
+              display: "flex",
+              alignItems: "center",
+              py: 0.5,
+            },
+          }}
+          getRowHeight={() => "auto"}
           showToolbar={false}
           paginationModel={paginationModel}
           onPaginationModelChange={handlePaginationModelChange}

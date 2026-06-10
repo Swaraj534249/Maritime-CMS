@@ -12,6 +12,7 @@ const agencySchema = new Schema(
     shortName: {
       type: String,
       trim: true,
+      unique: true,
       sparse: true,
     },
     email: {

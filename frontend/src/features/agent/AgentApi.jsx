@@ -29,6 +29,15 @@ export const fetchAgents = async (params = {}, signal) => {
   }
 };
 
+export const fetchAgentTypes = async () => {
+  try {
+    const res = await axiosi.get("/agents/types");
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};
+
 export const updateAgentById = async ({ id, data }) => {
   try {
     const res = await axiosi.patch(`/agents/${id}`, data);

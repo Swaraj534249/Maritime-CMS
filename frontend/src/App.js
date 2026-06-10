@@ -33,6 +33,7 @@ import { CandidatesFormPage } from "./pages/CandidatesFormPage";
 import { FeedbacksPage } from "./pages/FeedbacksPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { VacanciesPage } from "./pages/VacanciesPage";
+import { ProposalsPage } from "./pages/ProposalsPage";
 import { AgentOnboardingPage } from "./pages/AgentOnboardingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import {
@@ -173,6 +174,14 @@ const appRoutes = createRoutesFromElements(
           element={
             <AgentProtected>
               <VacanciesPage />
+            </AgentProtected>
+          }
+        />
+        <Route
+          path="/proposed"
+          element={
+            <AgentProtected>
+              <ProposalsPage />
             </AgentProtected>
           }
         />

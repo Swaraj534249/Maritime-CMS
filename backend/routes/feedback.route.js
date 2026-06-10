@@ -22,6 +22,12 @@ router.post(
 );
 
 router.get("/", feedbackRoles, skipAgencyCheckForSuperAdmin, controller.list);
+router.get(
+  "/status-counts",
+  feedbackRoles,
+  skipAgencyCheckForSuperAdmin,
+  controller.statusCounts,
+);
 router.get("/:id", feedbackRoles, skipAgencyCheckForSuperAdmin, controller.getById);
 router.patch(
   "/:id",

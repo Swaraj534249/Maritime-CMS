@@ -76,6 +76,11 @@ export async function submitEntityWithFiles({
       }
     });
     patchData.append("s3_uploads", JSON.stringify(uploads));
+    // When this PATCH is the file-attach step of a fresh create, it must not
+    // be recorded as a manual edit (otherwise a brand-new entry shows "Updated").
+    if (!isEditMode) {
+      patchData.append("__initialFileUpload", "true");
+    }
     await update(patchData);
   }
 

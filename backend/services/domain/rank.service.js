@@ -1,6 +1,7 @@
 const Rank = require("../../models/Rank");
 const { AppError } = require("../../errors/AppError");
 const { assertUniqueWithinAgency } = require("../../utils/tenantUniqueness");
+const { toTitleCase } = require("../../utils/textCase");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
 
@@ -20,7 +21,7 @@ function scopedQuery(req, extra = {}) {
 }
 
 async function create(req) {
-  const rankName = (req.body?.rankName || "").trim();
+  const rankName = toTitleCase(req.body?.rankName);
   if (!rankName) throw new AppError(400, "Rank name is required");
 
   const agencyId = resolveAgencyId(req);
@@ -34,6 +35,7 @@ async function create(req) {
         field: "rankName",
         value: rankName,
         message: "This rank already exists in your agency",
+        caseInsensitive: true,
       },
     ],
   });
@@ -121,7 +123,7 @@ async function updateById(req) {
   const data = {};
 
   if (req.body?.rankName !== undefined) {
-    const rankName = (req.body.rankName || "").trim();
+    const rankName = toTitleCase(req.body.rankName);
     if (!rankName) throw new AppError(400, "Rank name is required");
     await assertUniqueWithinAgency({
       Model: Rank,
@@ -132,6 +134,7 @@ async function updateById(req) {
           field: "rankName",
           value: rankName,
           message: "This rank already exists in your agency",
+          caseInsensitive: true,
         },
       ],
     });

@@ -1,5 +1,9 @@
 const { AppError } = require("../errors/AppError");
 
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function normalizeCheckValue(value, field) {
   if (value === undefined || value === null) return null;
   const str = String(value).trim();
@@ -24,11 +28,14 @@ function normalizeCheckValue(value, field) {
 async function assertUniqueWithinAgency({ Model, agencyId, excludeId, checks }) {
   if (!agencyId) return;
 
-  for (const { field, value, message } of checks) {
+  for (const { field, value, message, caseInsensitive } of checks) {
     const normalized = normalizeCheckValue(value, field);
     if (!normalized) continue;
 
-    const query = { agencyId, [field]: normalized };
+    const query = { agencyId };
+    query[field] = caseInsensitive
+      ? new RegExp(`^${escapeRegExp(normalized)}$`, "i")
+      : normalized;
     if (excludeId) {
       query._id = { $ne: excludeId };
     }

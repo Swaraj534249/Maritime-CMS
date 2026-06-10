@@ -35,6 +35,7 @@ const initialState = {
     paginationModel: { page: 0, pageSize: 10 },
     sortModel: [{ field: "createdAt", sort: "desc" }],
     searchValue: "",
+    statusFilter: "",
   },
   error: null,
 };
@@ -81,6 +82,9 @@ const vacancySlice = createSlice({
     },
     setVacancySearchValue(state, action) {
       state.ui.searchValue = action.payload;
+    },
+    setVacancyStatusFilter(state, action) {
+      state.ui.statusFilter = action.payload;
     },
     clearSelectedVacancy(state) {
       state.selected = null;
@@ -150,8 +154,16 @@ export const {
   setVacancyPaginationModel,
   setVacancySortModel,
   setVacancySearchValue,
+  setVacancyStatusFilter,
   clearSelectedVacancy,
 } = vacancySlice.actions;
+
+export const VACANCY_STATUS_OPTIONS = [
+  "Open",
+  "Partially Filled",
+  "Filled",
+  "Closed",
+];
 
 export default vacancySlice.reducer;
 
@@ -167,4 +179,6 @@ export const selectVacancyPaginationModel = (state) =>
   base(state).ui.paginationModel;
 export const selectVacancySortModel = (state) => base(state).ui.sortModel;
 export const selectVacancySearchValue = (state) => base(state).ui.searchValue;
+export const selectVacancyStatusFilter = (state) =>
+  base(state).ui.statusFilter;
 export const selectSelectedVacancy = (state) => base(state).selected;

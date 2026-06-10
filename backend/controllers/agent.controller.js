@@ -1,5 +1,10 @@
 const { asyncHandler } = require("../middleware/asyncHandler");
 const agentService = require("../services/domain/agent.service");
+const { AGENT_TYPES } = require("../models/schemas/agentTypes");
+
+exports.getTypes = asyncHandler(async (req, res) => {
+  res.json(AGENT_TYPES);
+});
 
 exports.create = asyncHandler(async (req, res) => {
   const data = await agentService.create(req);

@@ -29,6 +29,7 @@ const DataTable = ({
   sortingModel,
   onSortModelChange,
   sortingMode = "client",
+  getRowHeight,
 }) => {
   const containerHeight = height || "calc(100vh - 152px)";
 
@@ -52,6 +53,7 @@ const DataTable = ({
           ...slotProps,
         }}
         getRowId={getRowId}
+        getRowHeight={getRowHeight}
         // disableRowSelectionOnClick
         columnHeaderHeight={56}
         paginationMode={paginationMode}

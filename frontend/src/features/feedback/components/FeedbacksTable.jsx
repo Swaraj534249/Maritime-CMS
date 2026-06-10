@@ -21,6 +21,8 @@ import { LoadingButton } from "@mui/lab";
 import { toast } from "react-toastify";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
+import StatusFilter from "../../../components/StatusFilter/StatusFilter";
+import { useStatusCounts } from "../../../hooks/useStatusCounts";
 import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
 import FilesCountChip from "../../../components/Files/FilesCountChip";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
@@ -37,11 +39,14 @@ import {
   selectFeedbackPaginationModel,
   selectFeedbackSortModel,
   selectFeedbackSearchValue,
+  selectFeedbackStatusFilter,
   setFeedbackPaginationModel,
   setFeedbackSortModel,
   setFeedbackSearchValue,
+  setFeedbackStatusFilter,
   selectSelectedFeedback,
   clearSelectedFeedback,
+  FEEDBACK_STATUS_OPTIONS,
 } from "../FeedbackSlice";
 import {
   countFeedbackDocuments,
@@ -97,7 +102,16 @@ export default function FeedbacksTable() {
   const paginationModel = useSelector(selectFeedbackPaginationModel);
   const sortModel = useSelector(selectFeedbackSortModel);
   const searchValue = useSelector(selectFeedbackSearchValue);
+  const statusFilter = useSelector(selectFeedbackStatusFilter);
   const selected = useSelector(selectSelectedFeedback);
+
+  const {
+    total: statusTotal,
+    byStatus: statusByCount,
+    refetch: refetchStatusCounts,
+  } = useStatusCounts("feedbacks", {
+    params: searchValue ? { searchValue } : {},
+  });
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuRow, setMenuRow] = useState(null);
@@ -133,6 +147,7 @@ export default function FeedbacksTable() {
       params.sortOrder = sort.sort;
     }
     if (searchValue) params.searchValue = searchValue;
+    if (statusFilter) params.status = statusFilter;
 
     dispatch(fetchFeedbacksAsync({ params, signal: controller.signal }));
     return () => controller.abort();
@@ -142,6 +157,7 @@ export default function FeedbacksTable() {
     paginationModel.pageSize,
     sortModel,
     searchValue,
+    statusFilter,
     sortFieldMap,
   ]);
 
@@ -230,6 +246,7 @@ export default function FeedbacksTable() {
       setUpdateNote("");
       setUpdateFiles([]);
       dispatch(clearSelectedFeedback());
+      refetchStatusCounts();
       dispatch(
         fetchFeedbacksAsync({
           params: {
@@ -336,13 +353,30 @@ export default function FeedbacksTable() {
     <Stack sx={{ width: "100%" }}>
       <ListPageHeader
         actions={
-          <Search
-            value={searchValue}
-            onDebouncedChange={(v) => dispatch(setFeedbackSearchValue(v))}
-            delay={800}
-            placeholder="Search feedback..."
-            sx={{ width: { xs: 140, sm: 220, md: 320 } }}
-          />
+          <>
+            <StatusFilter
+              value={statusFilter}
+              onChange={(v) => {
+                dispatch(setFeedbackStatusFilter(v));
+                dispatch(
+                  setFeedbackPaginationModel({
+                    ...paginationModel,
+                    page: 0,
+                  }),
+                );
+              }}
+              options={FEEDBACK_STATUS_OPTIONS}
+              counts={statusByCount}
+              allCount={statusTotal}
+            />
+            <Search
+              value={searchValue}
+              onDebouncedChange={(v) => dispatch(setFeedbackSearchValue(v))}
+              delay={800}
+              placeholder="Search feedback..."
+              sx={{ width: { xs: 140, sm: 220, md: 320 } }}
+            />
+          </>
         }
       />
 

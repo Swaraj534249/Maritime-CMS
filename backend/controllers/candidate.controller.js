@@ -16,6 +16,11 @@ exports.list = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+exports.statusCounts = asyncHandler(async (req, res) => {
+  const result = await candidateService.statusCounts(req);
+  res.json(result);
+});
+
 exports.getById = asyncHandler(async (req, res) => {
   const candidate = await candidateService.getById(req);
   res.status(200).json(candidate);

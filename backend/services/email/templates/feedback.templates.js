@@ -15,6 +15,7 @@ function feedbackSubmittedEmail({
   agencyShortName,
   attachmentNames = [],
   createdAt,
+  signatureHtml = "",
 }) {
   const agencyLabel = agencyShortName
     ? `${agencyName} (${agencyShortName})`
@@ -42,6 +43,7 @@ function feedbackSubmittedEmail({
   <h3 style="margin: 24px 0 8px;">Description</h3>
   <p style="white-space: pre-wrap; background: #f5f5f5; padding: 12px; border-radius: 4px;">${description}</p>
   <p style="margin-top: 24px; font-size: 12px; color: #666;">Reply directly to this email to reach ${submitterEmail}.</p>
+  ${signatureHtml}
 </body>
 </html>`;
 }
@@ -57,6 +59,7 @@ function feedbackStatusUpdateEmail({
   attachmentNames = [],
   createdAt,
   intro,
+  signatureHtml = "",
 }) {
   const attachmentRow =
     attachmentNames.length > 0
@@ -81,6 +84,7 @@ function feedbackStatusUpdateEmail({
   </table>
   <h3 style="margin: 24px 0 8px;">Update note</h3>
   <p style="white-space: pre-wrap; background: #f5f5f5; padding: 12px; border-radius: 4px;">${note || "—"}</p>
+  ${signatureHtml}
 </body>
 </html>`;
 }

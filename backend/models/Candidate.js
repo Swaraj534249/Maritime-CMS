@@ -17,6 +17,13 @@ const candidateSchema = new Schema(
       required: true,
       index: true,
     },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastEditedAt: {
+      type: Date,
+    },
     industryType: {
       type: String,
       enum: INDUSTRY_TYPES,

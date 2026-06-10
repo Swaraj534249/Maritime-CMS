@@ -19,6 +19,7 @@ router.post(
 );
 router.post("/", parseFormFields, controller.create);
 router.get("/", controller.list);
+router.get("/status-counts", controller.statusCounts);
 router.get("/available", controller.getAvailable);
 router.get("/export", controller.exportList);
 router.get("/:id", controller.getById);

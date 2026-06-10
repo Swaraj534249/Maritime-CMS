@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Button,
@@ -22,12 +23,18 @@ import CloseIcon from "@mui/icons-material/Close";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
 import HowToRegOutlinedIcon from "@mui/icons-material/HowToRegOutlined";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import { toast } from "react-toastify";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import { useRowActions } from "../../../hooks/useRowActions";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
+import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
+import StatusFilter from "../../../components/StatusFilter/StatusFilter";
+import { useStatusCounts } from "../../../hooks/useStatusCounts";
+import { selectLoggedInUser } from "../../auth/AuthSlice";
 import VacancyForm from "./VacancyForm";
+import { ProposeDialog } from "../../proposal/components/ProposeDialog";
 import {
   fetchVacanciesAsync,
   closeVacancyAsync,
@@ -39,9 +46,12 @@ import {
   selectVacancyPaginationModel,
   selectVacancySortModel,
   selectVacancySearchValue,
+  selectVacancyStatusFilter,
   setVacancyPaginationModel,
   setVacancySortModel,
   setVacancySearchValue,
+  setVacancyStatusFilter,
+  VACANCY_STATUS_OPTIONS,
 } from "../VacancySlice";
 
 const STATUS_COLORS = {
@@ -67,6 +77,8 @@ const ownerLabel = (owner) => {
 
 export const Vacancies = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const loggedInUser = useSelector(selectLoggedInUser);
 
   const vacancies = useSelector(selectVacancies);
   const totalCount = useSelector(selectVacanciesTotalCount);
@@ -76,15 +88,33 @@ export const Vacancies = () => {
   const paginationModel = useSelector(selectVacancyPaginationModel);
   const sortModel = useSelector(selectVacancySortModel);
   const searchValue = useSelector(selectVacancySearchValue);
+  const statusFilter = useSelector(selectVacancyStatusFilter);
+
+  const {
+    total: statusTotal,
+    byStatus: statusByCount,
+    refetch: refetchStatusCounts,
+  } = useStatusCounts("vacancies", {
+    params: searchValue ? { searchValue } : {},
+  });
 
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [proposeVacancy, setProposeVacancy] = useState(null);
 
   const { anchorEl, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
 
   const saving = createStatus === "pending" || updateStatus === "pending";
+
+  const canManage = (vacancy) => {
+    if (!vacancy || !loggedInUser) return false;
+    if (["AGENCY_ADMIN", "SUPER_ADMIN"].includes(loggedInUser.role)) return true;
+    const addedById =
+      typeof vacancy.addedBy === "object" ? vacancy.addedBy?._id : vacancy.addedBy;
+    return String(addedById) === String(loggedInUser._id);
+  };
 
   const sortFieldMap = useMemo(
     () => ({
@@ -107,12 +137,13 @@ export const Vacancies = () => {
       params.sortOrder = sort.sort;
     }
     if (searchValue) params.searchValue = searchValue;
+    if (statusFilter) params.status = statusFilter;
 
     dispatch(fetchVacanciesAsync({ params, signal: controller.signal }));
 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paginationModel, sortModel, searchValue, refreshKey]);
+  }, [paginationModel, sortModel, searchValue, statusFilter, refreshKey]);
 
   const handleAddNew = () => {
     setEditData(null);
@@ -132,14 +163,29 @@ export const Vacancies = () => {
     try {
       await dispatch(closeVacancyAsync(id)).unwrap();
       toast.success("Vacancy status updated");
+      refetchStatusCounts();
     } catch (err) {
       toast.error(err?.message || "Failed to update vacancy");
     }
   };
 
-  const handlePropose = () => {
+  const handleViewProposed = () => {
+    const vacancy = vacancies.find((v) => v._id === selectedRowId);
     handleMenuClose();
-    toast.info("Proposal flow is coming in the next step");
+    if (!vacancy) return;
+    navigate(
+      `/proposed?vacancyId=${vacancy._id}&code=${encodeURIComponent(
+        vacancy.vacancyId || "",
+      )}`,
+    );
+  };
+
+  const openPropose = (vacancy) => {
+    if (vacancy?.status === "Filled" || vacancy?.status === "Closed") {
+      toast.info(`Vacancy is ${vacancy.status.toLowerCase()}`);
+      return;
+    }
+    setProposeVacancy(vacancy);
   };
 
   const handleCloseModal = () => {
@@ -150,6 +196,7 @@ export const Vacancies = () => {
   const handleSubmitted = () => {
     handleCloseModal();
     setRefreshKey((k) => k + 1);
+    refetchStatusCounts();
   };
 
   const handlePaginationModelChange = (model) => {
@@ -171,6 +218,11 @@ export const Vacancies = () => {
     dispatch(setVacancyPaginationModel({ ...paginationModel, page: 0 }));
   };
 
+  const handleStatusFilter = (value) => {
+    dispatch(setVacancyStatusFilter(value));
+    dispatch(setVacancyPaginationModel({ ...paginationModel, page: 0 }));
+  };
+
   const rows = vacancies.map((v) => ({
     id: v._id,
     vacancyId: v.vacancyId,
@@ -182,6 +234,7 @@ export const Vacancies = () => {
     signOnDate: v.signOnDate,
     contract: v.contractDurationMonths ? `${v.contractDurationMonths} mo` : "-",
     status: v.status,
+    _raw: v,
   }));
 
   const selectedRow = vacancies.find((v) => v._id === selectedRowId);
@@ -234,6 +287,25 @@ export const Vacancies = () => {
       ),
     },
     {
+      field: "addedBy",
+      headerName: "Added By",
+      flex: 1.4,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const v = params.row._raw;
+        return (
+          <AddedByCell
+            addedBy={v.addedBy}
+            createdAt={v.createdAt}
+            updatedBy={v.updatedBy}
+            updatedAt={v.lastEditedAt}
+          />
+        );
+      },
+    },
+    {
       field: "actions",
       headerName: "Actions",
       flex: 0.9,
@@ -245,17 +317,18 @@ export const Vacancies = () => {
       renderCell: (params) => (
         <Stack direction="row" alignItems="center" spacing={0.5}>
           <Tooltip title="Propose candidates" arrow>
-            <Chip
-              label="Propose"
-              size="small"
-              icon={<HowToRegOutlinedIcon />}
-              onClick={() => {
-                toast.info("Proposal flow is coming in the next step");
-              }}
-              color="primary"
-              variant="outlined"
-              sx={{ cursor: "pointer" }}
-            />
+            <span>
+              <Chip
+                label="Propose"
+                size="small"
+                icon={<HowToRegOutlinedIcon />}
+                onClick={() => openPropose(params.row._raw)}
+                color="primary"
+                variant="outlined"
+                disabled={["Filled", "Closed"].includes(params.row.status)}
+                sx={{ cursor: "pointer" }}
+              />
+            </span>
           </Tooltip>
           <Tooltip title="More actions" arrow>
             <IconButton
@@ -275,6 +348,13 @@ export const Vacancies = () => {
       <ListPageHeader
         actions={
           <>
+            <StatusFilter
+              value={statusFilter}
+              onChange={handleStatusFilter}
+              options={VACANCY_STATUS_OPTIONS}
+              counts={statusByCount}
+              allCount={statusTotal}
+            />
             <Search
               value={searchValue}
               onDebouncedChange={handleSearch}
@@ -298,7 +378,15 @@ export const Vacancies = () => {
         rows={rows}
         columns={columns}
         loading={fetchStatus === "pending"}
-        sx={{ maxWidth: "100%" }}
+        sx={{
+          maxWidth: "100%",
+          "& .MuiDataGrid-cell": {
+            display: "flex",
+            alignItems: "center",
+            py: 0.5,
+          },
+        }}
+        getRowHeight={() => "auto"}
         showToolbar={false}
         paginationModel={paginationModel}
         onPaginationModelChange={handlePaginationModelChange}
@@ -314,15 +402,18 @@ export const Vacancies = () => {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={handlePropose}>
-          <HowToRegOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
-          Propose
+        <MenuItem onClick={handleViewProposed}>
+          <FormatListBulletedIcon fontSize="small" sx={{ mr: 1 }} />
+          View Proposed
         </MenuItem>
-        <MenuItem onClick={handleEdit}>
+        <MenuItem onClick={handleEdit} disabled={!canManage(selectedRow)}>
           <EditOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
           Edit
         </MenuItem>
-        <MenuItem onClick={handleCloseToggle}>
+        <MenuItem
+          onClick={handleCloseToggle}
+          disabled={!canManage(selectedRow)}
+        >
           {selectedRow?.status === "Closed" ? (
             <>
               <LockOpenOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
@@ -375,6 +466,13 @@ export const Vacancies = () => {
           </LoadingButton>
         </DialogActions>
       </Dialog>
+
+      <ProposeDialog
+        open={Boolean(proposeVacancy)}
+        vacancy={proposeVacancy}
+        onClose={() => setProposeVacancy(null)}
+        onProposed={() => setRefreshKey((k) => k + 1)}
+      />
     </Stack>
   );
 };

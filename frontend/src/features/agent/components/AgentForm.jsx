@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import * as yup from "yup";
 import { createAgentAsync, updateAgentByIdAsync } from "../AgentSlice";
+import { fetchAgentTypes } from "../AgentApi";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import { getErrorMessage } from "../../../utils/getErrorMessage";
 import { toast } from "react-toastify";
@@ -14,7 +15,7 @@ const agentSchema = yup
   })
   .required();
 
-const getAgentFields = (isEditMode) => [
+const getAgentFields = (isEditMode, typeOptions) => [
   {
     name: "name",
     label: "Name",
@@ -33,7 +34,7 @@ const getAgentFields = (isEditMode) => [
     label: "User Type",
     type: "select",
     gridSize: { xs: 12 },
-    options: ["Sourcing", "Documentation", "Accounts"],
+    options: typeOptions,
   },
 ];
 
@@ -41,6 +42,32 @@ const AgentForm = ({ formId, initialData: initialDataProp = null, onClose }) => 
   const dispatch = useDispatch();
   const initialData = initialDataProp ?? {};
   const isEditMode = Boolean(initialData?._id);
+
+  const [agentTypes, setAgentTypes] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const types = await fetchAgentTypes();
+        if (active) setAgentTypes(Array.isArray(types) ? types : []);
+      } catch (err) {
+        // Non-blocking: dropdown stays empty if types fail to load
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Keep the current value selectable even if it's no longer in the list.
+  const typeOptions = (() => {
+    const opts = [...agentTypes];
+    if (initialData?.userType && !opts.includes(initialData.userType)) {
+      opts.unshift(initialData.userType);
+    }
+    return opts;
+  })();
 
   const defaultValues = {
     name: initialData?.name || "",
@@ -74,7 +101,7 @@ const AgentForm = ({ formId, initialData: initialDataProp = null, onClose }) => 
   return (
     <DynamicFormBuilder
       formId={formId}
-      fields={getAgentFields(isEditMode)}
+      fields={getAgentFields(isEditMode, typeOptions)}
       validationSchema={agentSchema}
       defaultValues={defaultValues}
       onSubmit={handleFormSubmit}

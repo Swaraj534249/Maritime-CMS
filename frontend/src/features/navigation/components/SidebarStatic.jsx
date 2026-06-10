@@ -16,6 +16,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
+import HowToRegOutlinedIcon from "@mui/icons-material/HowToRegOutlined";
 import { selectUserRole } from "../../auth/AuthSlice";
 
 export const SidebarStatic = ({ expanded = false }) => {
@@ -48,13 +49,25 @@ export const SidebarStatic = ({ expanded = false }) => {
         { name: "Agents", to: "/agency/agents", icon: <PeopleIcon /> },
         { name: "Candidates", to: "/candidates", icon: <PersonIcon /> },
         { name: "Vessel Owners", to: "/vessel-owners", icon: <BusinessIcon /> },
-        { name: "Vacancies", to: "/vacancies", icon: <WorkOutlineIcon /> },
+        {
+          name: "Vacancies",
+          to: "/vacancies",
+          icon: <WorkOutlineIcon />,
+          dividerAbove: true,
+        },
+        { name: "Proposed", to: "/proposed", icon: <HowToRegOutlinedIcon /> },
       ],
       AGENT: [
         dashboardItem,
         { name: "Candidates", to: "/candidates", icon: <PersonIcon /> },
         { name: "Vessel Owners", to: "/vessel-owners", icon: <BusinessIcon /> },
-        { name: "Vacancies", to: "/vacancies", icon: <WorkOutlineIcon /> },
+        {
+          name: "Vacancies",
+          to: "/vacancies",
+          icon: <WorkOutlineIcon />,
+          dividerAbove: true,
+        },
+        { name: "Proposed", to: "/proposed", icon: <HowToRegOutlinedIcon /> },
       ],
     };
     return baseItems[userRole] || [dashboardItem];
@@ -63,42 +76,54 @@ export const SidebarStatic = ({ expanded = false }) => {
   const menuItems = getMenuItems();
   const isActive = (path) => location.pathname === path;
 
-  const renderItem = (item) => (
-    <ListItemButton
-      key={item.name}
-      component={Link}
-      to={item.to}
-      sx={{
-        justifyContent: expanded ? "flex-start" : "center",
-        py: 1.5,
-        px: expanded ? 2 : 1,
-        bgcolor: isActive(item.to)
-          ? "rgba(25, 118, 210, 0.08)"
-          : "transparent",
-        borderLeft: isActive(item.to)
-          ? "3px solid #1976d2"
-          : "3px solid transparent",
-        "&:hover": { bgcolor: "rgba(25, 118, 210, 0.04)" },
-      }}
-      title={!expanded ? item.name : undefined}
-    >
-      <ListItemIcon
+  const renderItem = (item) => {
+    const button = (
+      <ListItemButton
+        component={Link}
+        to={item.to}
         sx={{
-          minWidth: expanded ? 40 : 0,
-          justifyContent: "center",
-          color: isActive(item.to) ? "primary.main" : "inherit",
+          justifyContent: expanded ? "flex-start" : "center",
+          py: 1.5,
+          px: expanded ? 2 : 1,
+          bgcolor: isActive(item.to)
+            ? "rgba(25, 118, 210, 0.08)"
+            : "transparent",
+          borderLeft: isActive(item.to)
+            ? "3px solid #1976d2"
+            : "3px solid transparent",
+          "&:hover": { bgcolor: "rgba(25, 118, 210, 0.04)" },
         }}
+        title={!expanded ? item.name : undefined}
       >
-        {item.icon}
-      </ListItemIcon>
-      {expanded && (
-        <ListItemText
-          primary={item.name}
-          primaryTypographyProps={{ variant: "body2", noWrap: true }}
-        />
-      )}
-    </ListItemButton>
-  );
+        <ListItemIcon
+          sx={{
+            minWidth: expanded ? 40 : 0,
+            justifyContent: "center",
+            color: isActive(item.to) ? "primary.main" : "inherit",
+          }}
+        >
+          {item.icon}
+        </ListItemIcon>
+        {expanded && (
+          <ListItemText
+            primary={item.name}
+            primaryTypographyProps={{ variant: "body2", noWrap: true }}
+          />
+        )}
+      </ListItemButton>
+    );
+
+    if (item.dividerAbove) {
+      return (
+        <React.Fragment key={item.name}>
+          <Divider sx={{ my: 1 }} />
+          {button}
+        </React.Fragment>
+      );
+    }
+
+    return <React.Fragment key={item.name}>{button}</React.Fragment>;
+  };
 
   return (
     <Box

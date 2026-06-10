@@ -20,6 +20,7 @@ router.use(
   }),
 );
 
+router.get("/types", controller.getTypes);
 router.post("/", controller.create);
 router.get("/", controller.list);
 router.get("/:id", controller.getById);

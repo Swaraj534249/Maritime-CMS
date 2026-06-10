@@ -11,6 +11,11 @@ exports.list = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+exports.statusCounts = asyncHandler(async (req, res) => {
+  const result = await feedbackService.statusCounts(req);
+  res.json(result);
+});
+
 exports.getById = asyncHandler(async (req, res) => {
   const data = await feedbackService.getById(req);
   res.status(200).json(data);

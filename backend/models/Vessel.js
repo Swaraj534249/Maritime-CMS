@@ -13,6 +13,13 @@ const vesselSchema = new Schema(
       ref: "User",
       index: true,
     },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastEditedAt: {
+      type: Date,
+    },
     vesselOwner: {
       type: Schema.Types.ObjectId,
       ref: "VesselOwner",

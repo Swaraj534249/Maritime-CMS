@@ -35,6 +35,15 @@ export const fetchCandidates = async (params = {}, signal) => {
   }
 };
 
+export const fetchCandidateStatusCounts = async (params = {}, signal) => {
+  try {
+    const res = await axiosi.get("/candidates/status-counts", { params, signal });
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};
+
 export const updateCandidateById = async (data) => {
   try {
     const id = entityIdFromPayload(data);
