@@ -31,6 +31,8 @@ const rankRoutes = require("./routes/rank.route");
 const vesselTypeRoutes = require("./routes/vesselType.route");
 const vacancyRoutes = require("./routes/vacancy.route");
 const proposalRoutes = require("./routes/proposal.route");
+const documentationRoutes = require("./routes/documentation.route");
+const sailingRoutes = require("./routes/sailing.route");
 
 const { connectToDB } = require("./database/db");
 const { errorHandler } = require("./middleware/errorHandler");
@@ -70,6 +72,8 @@ protectedApi.use("/ranks", rankRoutes);
 protectedApi.use("/vesselTypes", vesselTypeRoutes);
 protectedApi.use("/vacancies", vacancyRoutes);
 protectedApi.use("/proposals", proposalRoutes);
+protectedApi.use("/documentation", documentationRoutes);
+protectedApi.use("/sailings", sailingRoutes);
 server.use(protectedApi);
 
 server.get("/", (req, res) => {

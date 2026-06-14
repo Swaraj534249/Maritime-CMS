@@ -97,9 +97,13 @@ const vacancySlice = createSlice({
       })
       .addCase(fetchVacanciesAsync.fulfilled, (state, action) => {
         state.status.fetch = "fulfilled";
-        const { data, meta } = action.payload || {};
+        const { data, meta, aggregates } = action.payload || {};
         state.list.data = data || [];
         state.list.meta = meta || initialState.list.meta;
+        state.list.statusCounts = aggregates?.statusCounts || {
+          total: 0,
+          byStatus: {},
+        };
       })
       .addCase(fetchVacanciesAsync.rejected, (state, action) => {
         state.status.fetch = "rejected";
@@ -172,6 +176,8 @@ const base = (state) => state.VacancySlice;
 export const selectVacancies = (state) => base(state).list.data;
 export const selectVacanciesTotalCount = (state) =>
   base(state).list.meta.pagination?.totalRecords ?? 0;
+export const selectVacancyStatusCounts = (state) =>
+  base(state).list.statusCounts || { total: 0, byStatus: {} };
 export const selectVacancyFetchStatus = (state) => base(state).status.fetch;
 export const selectVacancyCreateStatus = (state) => base(state).status.create;
 export const selectVacancyUpdateStatus = (state) => base(state).status.update;

@@ -11,6 +11,8 @@ import RankSlice from "../features/assets/rank/RankSlice";
 import VesselTypeSlice from "../features/assets/vesselType/VesselTypeSlice";
 import VacancySlice from "../features/vacancy/VacancySlice";
 import ProposalSlice from "../features/proposal/ProposalSlice";
+import DocumentationSlice from "../features/documentation/DocumentationSlice";
+import SailingSlice from "../features/sailing/SailingSlice";
 
 export const store = configureStore({
   reducer: {
@@ -26,5 +28,7 @@ export const store = configureStore({
     VesselTypeSlice,
     VacancySlice,
     ProposalSlice,
+    DocumentationSlice,
+    SailingSlice,
   },
 });

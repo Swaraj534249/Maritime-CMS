@@ -17,6 +17,8 @@ import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import HowToRegOutlinedIcon from "@mui/icons-material/HowToRegOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import DirectionsBoatOutlinedIcon from "@mui/icons-material/DirectionsBoatOutlined";
 import { selectUserRole } from "../../auth/AuthSlice";
 
 export const SidebarStatic = ({ expanded = false }) => {
@@ -56,6 +58,16 @@ export const SidebarStatic = ({ expanded = false }) => {
           dividerAbove: true,
         },
         { name: "Proposed", to: "/proposed", icon: <HowToRegOutlinedIcon /> },
+        {
+          name: "Documentation",
+          to: "/documentation",
+          icon: <DescriptionOutlinedIcon />,
+        },
+        {
+          name: "Sailings",
+          to: "/sailings",
+          icon: <DirectionsBoatOutlinedIcon />,
+        },
       ],
       AGENT: [
         dashboardItem,
@@ -68,6 +80,16 @@ export const SidebarStatic = ({ expanded = false }) => {
           dividerAbove: true,
         },
         { name: "Proposed", to: "/proposed", icon: <HowToRegOutlinedIcon /> },
+        {
+          name: "Documentation",
+          to: "/documentation",
+          icon: <DescriptionOutlinedIcon />,
+        },
+        {
+          name: "Sailings",
+          to: "/sailings",
+          icon: <DirectionsBoatOutlinedIcon />,
+        },
       ],
     };
     return baseItems[userRole] || [dashboardItem];

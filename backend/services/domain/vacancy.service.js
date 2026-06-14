@@ -200,9 +200,11 @@ async function list(req) {
   if (req.user?.role !== "SUPER_ADMIN" && req.user?.agencyId) {
     extraFilter.agencyId = req.user.agencyId;
   }
-  if (status) extraFilter.status = status;
+  // NOTE: status is applied inside facetPaginate (not here) so the folded
+  // status counts can still see every status within the search scope.
 
   if (all === "true") {
+    if (status) extraFilter.status = status;
     const data = await Vacancy.find(extraFilter)
       .sort({ createdAt: -1 })
       .populate(POPULATE)
@@ -232,13 +234,16 @@ async function list(req) {
     extraFilter,
   });
 
-  const { data, totalRecords } = await facetPaginate({
+  const { data, totalRecords, statusCounts } = await facetPaginate({
     Model: Vacancy,
     matchFilter: queryFilter,
     sort,
     skip,
     limit: pageSizeNumber,
     populate: POPULATE,
+    statusField: "status",
+    statusValue: status,
+    withCounts: true,
   });
 
   return buildListResponse({
@@ -249,6 +254,7 @@ async function list(req) {
     searchValue,
     sortField,
     sortOrder,
+    aggregates: { statusCounts },
   });
 }
 

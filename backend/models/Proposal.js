@@ -39,9 +39,11 @@ const proposalSchema = new Schema(
       index: true,
     },
 
-    // Denormalized for fast display / search.
+    // Denormalized for fast display / search (avoids populating refs on lists).
     vacancyCode: { type: String, trim: true },
+    vesselName: { type: String, trim: true },
     candidateName: { type: String, trim: true },
+    indosNumber: { type: String, trim: true },
     rank: { type: String, trim: true },
 
     // Lightweight selection checklist completed before a candidate is selected.

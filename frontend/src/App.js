@@ -34,6 +34,10 @@ import { FeedbacksPage } from "./pages/FeedbacksPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { VacanciesPage } from "./pages/VacanciesPage";
 import { ProposalsPage } from "./pages/ProposalsPage";
+import { DocumentationPage } from "./pages/DocumentationPage";
+import { DocumentationVerifyPage } from "./pages/DocumentationVerifyPage";
+import { SailingsPage } from "./pages/SailingsPage";
+import { HelpPage } from "./pages/HelpPage";
 import { AgentOnboardingPage } from "./pages/AgentOnboardingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import {
@@ -182,6 +186,38 @@ const appRoutes = createRoutesFromElements(
           element={
             <AgentProtected>
               <ProposalsPage />
+            </AgentProtected>
+          }
+        />
+        <Route
+          path="/documentation"
+          element={
+            <AgentProtected>
+              <DocumentationPage />
+            </AgentProtected>
+          }
+        />
+        <Route
+          path="/documentation/:id/verify"
+          element={
+            <AgentProtected>
+              <DocumentationVerifyPage />
+            </AgentProtected>
+          }
+        />
+        <Route
+          path="/sailings"
+          element={
+            <AgentProtected>
+              <SailingsPage />
+            </AgentProtected>
+          }
+        />
+        <Route
+          path="/help"
+          element={
+            <AgentProtected>
+              <HelpPage />
             </AgentProtected>
           }
         />

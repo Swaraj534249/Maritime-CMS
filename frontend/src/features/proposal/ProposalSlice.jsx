@@ -51,7 +51,8 @@ export const proposeCandidatesAsync = createApiThunk(
 
 export const selectProposalAsync = createApiThunk(
   "proposal/select",
-  (id) => selectProposal(id),
+  ({ id, documentationAgentId }) =>
+    selectProposal({ id, documentationAgentId }),
 );
 
 export const rejectProposalAsync = createApiThunk(
@@ -93,9 +94,13 @@ const proposalSlice = createSlice({
       })
       .addCase(fetchProposalsAsync.fulfilled, (state, action) => {
         state.status.fetch = "fulfilled";
-        const { data, meta } = action.payload || {};
+        const { data, meta, aggregates } = action.payload || {};
         state.list.data = data || [];
         state.list.meta = meta || initialState.list.meta;
+        state.list.statusCounts = aggregates?.statusCounts || {
+          total: 0,
+          byStatus: {},
+        };
       })
       .addCase(fetchProposalsAsync.rejected, (state, action) => {
         state.status.fetch = "rejected";
@@ -161,6 +166,8 @@ const base = (state) => state.ProposalSlice;
 export const selectProposals = (state) => base(state).list.data;
 export const selectProposalsTotalCount = (state) =>
   base(state).list.meta.pagination?.totalRecords ?? 0;
+export const selectProposalStatusCounts = (state) =>
+  base(state).list.statusCounts || { total: 0, byStatus: {} };
 export const selectProposalFetchStatus = (state) => base(state).status.fetch;
 export const selectProposalProposeStatus = (state) =>
   base(state).status.propose;

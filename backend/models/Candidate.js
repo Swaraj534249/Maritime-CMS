@@ -147,7 +147,14 @@ const candidateSchema = new Schema(
     // Current Status
     currentStatus: {
       type: String,
-      enum: ["Available", "Onboard", "On Leave", "In Pool", "Not Available"],
+      enum: [
+        "Available",
+        "In Process",
+        "Onboard",
+        "On Leave",
+        "In Pool",
+        "Not Available",
+      ],
       required: true,
       default: "Available",
       index: true,

@@ -3,9 +3,11 @@ const Vacancy = require("../../models/Vacancy");
 const Candidate = require("../../models/Candidate");
 const Agency = require("../../models/Agency");
 const User = require("../../models/User");
+const Documentation = require("../../models/Documentation");
 const { AppError } = require("../../errors/AppError");
 const {
   queueCandidateProposedEmail,
+  queueCandidateSelectedEmail,
 } = require("../email/proposalNotification.service");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
@@ -34,6 +36,7 @@ function candidateFullName(c) {
   return [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
 }
 
+// Full populate — used only for the single-record review (detail) view.
 const POPULATE = [
   {
     path: "candidate",
@@ -61,29 +64,30 @@ async function eligibleCandidates(req) {
   const vacancy = await loadVacancyForAgency(req, req.query.vacancyId);
   const agencyId = vacancy.agencyId;
 
-  const [selectedCandidateIds, proposedHereIds, activeCount] =
-    await Promise.all([
-      Proposal.find({ agencyId, status: "Selected" }).distinct("candidate"),
-      Proposal.find({ vacancy: vacancy._id }).distinct("candidate"),
-      Proposal.countDocuments({
-        vacancy: vacancy._id,
-        status: { $in: ACTIVE_PROPOSAL_STATUSES },
-      }),
-    ]);
+  const [proposedHereIds, activeCount] = await Promise.all([
+    Proposal.find({ vacancy: vacancy._id }).distinct("candidate"),
+    Proposal.countDocuments({
+      vacancy: vacancy._id,
+      status: { $in: ACTIVE_PROPOSAL_STATUSES },
+    }),
+  ]);
 
-  const exclude = [...selectedCandidateIds, ...proposedHereIds];
   const remainingSlots = Math.max(0, MAX_PROPOSALS_PER_VACANCY - activeCount);
 
+  // Only "Available" candidates are proposable. Once selected anywhere a
+  // candidate becomes "In Process" and drops out of every vacancy's list.
   const filter = {
     agencyId,
     isActive: true,
     rank: vacancy.rank,
-    currentStatus: { $ne: "Onboard" },
-    _id: { $nin: exclude },
+    currentStatus: "Available",
+    _id: { $nin: proposedHereIds },
   };
 
   const candidates = await Candidate.find(filter)
-    .select("firstName middleName lastName rank vesselType currentStatus email phone")
+    .select(
+      "firstName middleName lastName rank vesselType currentStatus email phone nationality dateOfBirth indosNumber cdcNumber availableFrom",
+    )
     .sort({ firstName: 1 })
     .lean();
 
@@ -130,12 +134,16 @@ async function propose(req) {
     _id: { $in: candidateIds },
     agencyId: vacancy.agencyId,
   })
-    .select("firstName middleName lastName rank currentStatus email")
+    .select("firstName middleName lastName rank currentStatus email indosNumber")
     .lean();
 
   if (candidates.length !== candidateIds.length) {
     throw new AppError(400, "Some candidates were not found in your agency");
   }
+
+  // Vessel name is snapshotted so the Proposed list needn't populate the vacancy.
+  await vacancy.populate({ path: "vessel", select: "vesselname" });
+  const vesselName = vacancy.vessel?.vesselname || "";
 
   const selectedElsewhere = await Proposal.find({
     agencyId: vacancy.agencyId,
@@ -152,7 +160,9 @@ async function propose(req) {
       vacancy: vacancy._id,
       candidate: c._id,
       vacancyCode: vacancy.vacancyId,
+      vesselName,
       candidateName: candidateFullName(c),
+      indosNumber: c.indosNumber || "",
       rank: c.rank,
       status: "Proposed",
     }));
@@ -227,7 +237,7 @@ async function list(req) {
     extraFilter.agencyId = req.user.agencyId;
   }
   if (vacancyId) extraFilter.vacancy = vacancyId;
-  if (status) extraFilter.status = status;
+  // status applied inside facetPaginate so folded counts see all statuses.
 
   const pageNumber = Math.max(1, parseInt(page, 10) || 1);
   const pageSizeNumber = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
@@ -243,13 +253,17 @@ async function list(req) {
     extraFilter,
   });
 
-  const { data, totalRecords } = await facetPaginate({
+  // No populate: the table renders entirely from snapshot fields. Full
+  // candidate/vacancy details are fetched by id when the review dialog opens.
+  const { data, totalRecords, statusCounts } = await facetPaginate({
     Model: Proposal,
     matchFilter: queryFilter,
     sort,
     skip,
     limit: pageSizeNumber,
-    populate: POPULATE,
+    statusField: "status",
+    statusValue: status,
+    withCounts: true,
   });
 
   return buildListResponse({
@@ -260,7 +274,16 @@ async function list(req) {
     searchValue,
     sortField,
     sortOrder,
+    aggregates: { statusCounts },
   });
+}
+
+async function getById(req) {
+  const proposal = await Proposal.findOne(scopedQuery(req, { _id: req.params.id }))
+    .populate(POPULATE)
+    .lean();
+  if (!proposal) throw new AppError(404, "Proposal not found");
+  return proposal;
 }
 
 async function statusCounts(req) {
@@ -311,6 +334,19 @@ async function select(req) {
     throw new AppError(400, `Vacancy is ${vacancy.status.toLowerCase()}`);
   }
 
+  // Selecting a candidate must hand them off to a documentation agent.
+  const documentationAgentId = req.body?.documentationAgentId;
+  if (!documentationAgentId) {
+    throw new AppError(400, "Please assign a documentation agent");
+  }
+  const docAgent = await User.findOne({
+    _id: documentationAgentId,
+    agencyId: vacancy.agencyId,
+  }).select("_id");
+  if (!docAgent) {
+    throw new AppError(400, "Assigned agent not found in your agency");
+  }
+
   // Mark this proposal selected.
   proposal.status = "Selected";
   proposal.decidedBy = req.user?._id;
@@ -341,7 +377,88 @@ async function select(req) {
     { $set: { status: "Selected on different vacancy", decidedAt: new Date() } },
   );
 
+  // Candidate moves to "In Process" so they leave every vacancy's propose list.
+  await Candidate.findByIdAndUpdate(proposal.candidate, {
+    currentStatus: "In Process",
+  });
+
+  // Resolve the few snapshot fields the Documentation list needs (so it can
+  // render without populating candidate/vacancy/vessel).
+  const [candidate] = await Promise.all([
+    Candidate.findById(proposal.candidate).select("email indosNumber").lean(),
+    vacancy.populate([
+      { path: "vessel", select: "vesselname" },
+      { path: "vesselOwner", select: "company_name company_shortname" },
+    ]),
+  ]);
+  const vesselName = vacancy.vessel?.vesselname || "";
+
+  // Hand off to documentation: create the Documentation work item.
+  try {
+    await Documentation.create({
+      agencyId: vacancy.agencyId,
+      candidate: proposal.candidate,
+      vacancy: vacancy._id,
+      proposal: proposal._id,
+      candidateName: proposal.candidateName,
+      indosNumber: candidate?.indosNumber || "",
+      vacancyCode: proposal.vacancyCode || vacancy.vacancyId,
+      vesselName,
+      rank: proposal.rank,
+      assignedTo: documentationAgentId,
+      assignedBy: req.user?._id,
+      assignedAt: new Date(),
+      addedBy: req.user?._id,
+      status: "In Documentation",
+    });
+  } catch (err) {
+    if (err?.code !== 11000) {
+      throw new AppError(500, "Selected, but failed to create documentation record");
+    }
+  }
+
+  // Congratulate the candidate (best-effort; never block selection).
+  try {
+    const [signer, agency] = await Promise.all([
+      User.findById(req.user?._id).select("name email phone userType").lean(),
+      Agency.findById(vacancy.agencyId).lean(),
+    ]);
+    if (candidate?.email) {
+      queueCandidateSelectedEmail({
+        candidate: { name: proposal.candidateName, email: candidate.email },
+        vacancy: {
+          vacancyId: vacancy.vacancyId,
+          vesselOwnerName:
+            vacancy.vesselOwner?.company_shortname ||
+            vacancy.vesselOwner?.company_name ||
+            "",
+          vesselName: vacancy.vessel?.vesselname,
+          vesselType: vacancy.vesselType,
+          rank: vacancy.rank,
+          salary: vacancy.salary,
+          signOnDate: vacancy.signOnDate,
+          contractDurationMonths: vacancy.contractDurationMonths,
+        },
+        agency,
+        signer,
+      });
+    }
+  } catch (mailErr) {
+    console.error("[proposal] selected notify failed:", mailErr.message || mailErr);
+  }
+
   return Proposal.findById(proposal._id).populate(POPULATE).lean();
+}
+
+async function assignableAgents(req) {
+  const filter = {
+    role: { $in: ["AGENT", "AGENCY_ADMIN"] },
+    status: { $ne: "inactive" },
+  };
+  if (req.user?.role !== "SUPER_ADMIN" && req.user?.agencyId) {
+    filter.agencyId = req.user.agencyId;
+  }
+  return User.find(filter).select("name userType").sort({ name: 1 }).lean();
 }
 
 async function reject(req) {
@@ -393,7 +510,9 @@ module.exports = {
   eligibleCandidates,
   propose,
   list,
+  getById,
   statusCounts,
+  assignableAgents,
   select,
   updateChecklist,
   reject,

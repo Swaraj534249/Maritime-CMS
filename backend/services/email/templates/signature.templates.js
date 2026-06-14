@@ -19,6 +19,19 @@ function formatWhen(date) {
   });
 }
 
+/** Date-only formatter for business dates (sign-on, sign-off, leaving, etc.). */
+function formatDate(date) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function buildAgencySignature({
   // Acting agent (sender)
   signerName,
@@ -97,6 +110,7 @@ function detailBox(rows = []) {
 module.exports = {
   escapeHtml,
   formatWhen,
+  formatDate,
   buildAgencySignature,
   emailShell,
   detailBox,

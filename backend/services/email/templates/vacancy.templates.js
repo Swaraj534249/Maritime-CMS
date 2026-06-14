@@ -1,6 +1,6 @@
 const {
   escapeHtml,
-  formatWhen,
+  formatDate,
   emailShell,
   detailBox,
 } = require("./signature.templates");
@@ -30,7 +30,7 @@ function vacancyCreatedEmail({
       ["Rank", rank],
       ["Openings", openings],
       ["Salary", salary],
-      ["Sign-on Date", signOnDate ? formatWhen(signOnDate) : ""],
+      ["Sign-on Date", formatDate(signOnDate)],
       ["Contract", contractDurationMonths ? `${contractDurationMonths} months` : ""],
     ])}
     ${signatureHtml}`;

@@ -7,6 +7,7 @@ import {
   Tooltip,
   Chip,
   Typography,
+  Box,
 } from "@mui/material";
 import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -14,7 +15,6 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import StatusFilter from "../../../components/StatusFilter/StatusFilter";
-import { useStatusCounts } from "../../../hooks/useStatusCounts";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 import { ProposalReviewDialog } from "./ProposalReviewDialog";
 import {
@@ -26,6 +26,7 @@ import {
   selectProposalSortModel,
   selectProposalSearchValue,
   selectProposalStatusFilter,
+  selectProposalStatusCounts,
   setProposalPaginationModel,
   setProposalSortModel,
   setProposalSearchValue,
@@ -66,14 +67,9 @@ export const Proposals = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [reviewProposal, setReviewProposal] = useState(null);
 
-  const countsParams = {};
-  if (searchValue) countsParams.searchValue = searchValue;
-  if (vacancyIdParam) countsParams.vacancyId = vacancyIdParam;
-  const {
-    total: statusTotal,
-    byStatus: statusByCount,
-    refetch: refetchStatusCounts,
-  } = useStatusCounts("proposals", { params: countsParams });
+  const { total: statusTotal, byStatus: statusByCount } = useSelector(
+    selectProposalStatusCounts,
+  );
 
   const sortFieldMap = useMemo(
     () => ({
@@ -139,9 +135,10 @@ export const Proposals = () => {
   const rows = proposals.map((p) => ({
     id: p._id,
     candidateName: p.candidateName || "-",
+    indosNumber: p.indosNumber || "",
     rank: p.rank || "-",
-    vacancyCode: p.vacancy?.vacancyId || p.vacancyCode || "-",
-    vessel: p.vacancy?.vessel?.vesselname || "-",
+    vacancyCode: p.vacancyCode || "-",
+    vessel: p.vesselName || "-",
     status: p.status,
     _raw: p,
   }));
@@ -184,9 +181,14 @@ export const Proposals = () => {
   };
 
   const renderCandidateCell = (params) => (
-    <Typography variant="body2" fontWeight={600} noWrap>
-      {params.row.candidateName}
-    </Typography>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="body2" fontWeight={600} noWrap>
+        {params.row.candidateName}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" noWrap>
+        INDOS: {params.row.indosNumber || "—"}
+      </Typography>
+    </Box>
   );
 
   const columns = [
@@ -316,7 +318,6 @@ export const Proposals = () => {
         onClose={() => setReviewProposal(null)}
         onDecided={() => {
           setRefreshKey((k) => k + 1);
-          refetchStatusCounts();
         }}
       />
     </Stack>

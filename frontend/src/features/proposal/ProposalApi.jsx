@@ -32,9 +32,29 @@ export const fetchProposals = async (params = {}, signal) => {
   }
 };
 
-export const selectProposal = async (id) => {
+export const getProposalById = async (id, signal) => {
   try {
-    const res = await axiosi.patch(`/proposals/${id}/select`);
+    const res = await axiosi.get(`/proposals/${id}`, { signal });
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};
+
+export const selectProposal = async ({ id, documentationAgentId }) => {
+  try {
+    const res = await axiosi.patch(`/proposals/${id}/select`, {
+      documentationAgentId,
+    });
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};
+
+export const fetchAssignableAgents = async (signal) => {
+  try {
+    const res = await axiosi.get("/proposals/assignable-agents", { signal });
     return res.data;
   } catch (error) {
     rethrowApiError(error);

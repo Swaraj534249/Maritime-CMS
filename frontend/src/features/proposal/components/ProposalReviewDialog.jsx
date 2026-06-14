@@ -15,11 +15,14 @@ import {
   Grid,
   Paper,
   CircularProgress,
+  TextField,
+  MenuItem,
 } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import CloseIcon from "@mui/icons-material/Close";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import AssignmentIndOutlinedIcon from "@mui/icons-material/AssignmentIndOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import { toast } from "react-toastify";
@@ -29,6 +32,7 @@ import {
   selectProposalAsync,
   rejectProposalAsync,
 } from "../ProposalSlice";
+import { fetchAssignableAgents, getProposalById } from "../ProposalApi";
 import { getErrorMessage } from "../../../utils/getErrorMessage";
 
 const fmtDate = (value) => {
@@ -74,6 +78,12 @@ export function ProposalReviewDialog({ open, proposal, onClose, onDecided }) {
   });
   const [savingKey, setSavingKey] = useState(null);
   const [deciding, setDeciding] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const [assignAgentId, setAssignAgentId] = useState("");
+  // Full record (candidate + vacancy) is fetched on open; the list row only
+  // carries snapshot fields.
+  const [full, setFull] = useState(null);
+  const [loadingFull, setLoadingFull] = useState(false);
 
   const isEditable = proposal?.status === "Proposed";
 
@@ -85,16 +95,51 @@ export function ProposalReviewDialog({ open, proposal, onClose, onDecided }) {
         verified: !!cl.verified,
         interviewDone: !!cl.interviewDone,
       });
+      setAssignAgentId("");
     }
   }, [proposal]);
+
+  // Fetch the full proposal (with candidate + vacancy details) when opened.
+  useEffect(() => {
+    if (!open || !proposal?._id) return;
+    const controller = new AbortController();
+    setFull(null);
+    setLoadingFull(true);
+    (async () => {
+      try {
+        const data = await getProposalById(proposal._id, controller.signal);
+        setFull(data);
+      } catch (err) {
+        // non-blocking; details just won't show
+      } finally {
+        setLoadingFull(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [open, proposal?._id]);
+
+  // Load assignable agents when reviewing an in-progress proposal.
+  useEffect(() => {
+    if (!open || !isEditable) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const data = await fetchAssignableAgents(controller.signal);
+        setAgents(Array.isArray(data) ? data : []);
+      } catch (err) {
+        // non-blocking
+      }
+    })();
+    return () => controller.abort();
+  }, [open, isEditable]);
 
   const allChecked = useMemo(
     () => CHECKLIST_STEPS.every((s) => checklist[s.key]),
     [checklist],
   );
 
-  const candidate = proposal?.candidate || {};
-  const vacancy = proposal?.vacancy || {};
+  const candidate = full?.candidate || {};
+  const vacancy = full?.vacancy || {};
   const candidateName =
     proposal?.candidateName ||
     [candidate.firstName, candidate.middleName, candidate.lastName]
@@ -120,10 +165,16 @@ export function ProposalReviewDialog({ open, proposal, onClose, onDecided }) {
   };
 
   const handleSelect = async () => {
+    if (!assignAgentId) return;
     setDeciding(true);
     try {
-      await dispatch(selectProposalAsync(proposal._id)).unwrap();
-      toast.success("Candidate selected");
+      await dispatch(
+        selectProposalAsync({
+          id: proposal._id,
+          documentationAgentId: assignAgentId,
+        }),
+      ).unwrap();
+      toast.success("Candidate selected and assigned to documentation");
       onDecided?.();
       onClose();
     } catch (err) {
@@ -170,6 +221,17 @@ export function ProposalReviewDialog({ open, proposal, onClose, onDecided }) {
       </DialogTitle>
 
       <DialogContent dividers>
+        {loadingFull && !full && (
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ mb: 2, color: "text.secondary" }}
+          >
+            <CircularProgress size={16} />
+            <Typography variant="caption">Loading details…</Typography>
+          </Stack>
+        )}
         {/* Vacancy first */}
         <SectionHeader
           icon={<WorkOutlineIcon color="primary" fontSize="small" />}
@@ -282,6 +344,39 @@ export function ProposalReviewDialog({ open, proposal, onClose, onDecided }) {
             </Typography>
           )}
         </Box>
+
+        {/* Assignment (revealed once the checklist is complete) */}
+        {isEditable && allChecked && (
+          <Box sx={{ mt: 2 }}>
+            <Divider sx={{ mb: 2 }} />
+            <SectionHeader
+              icon={<AssignmentIndOutlinedIcon color="primary" fontSize="small" />}
+              title="Assign to Documentation Agent"
+            />
+            <TextField
+              select
+              size="small"
+              fullWidth
+              required
+              label="Documentation agent"
+              value={assignAgentId}
+              onChange={(e) => setAssignAgentId(e.target.value)}
+              helperText="The selected candidate will be handed off to this agent."
+            >
+              {agents.length === 0 && (
+                <MenuItem value="" disabled>
+                  No agents available
+                </MenuItem>
+              )}
+              {agents.map((a) => (
+                <MenuItem key={a._id} value={a._id}>
+                  {a.name}
+                  {a.userType ? ` — ${a.userType}` : ""}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
@@ -296,9 +391,9 @@ export function ProposalReviewDialog({ open, proposal, onClose, onDecided }) {
               color="success"
               onClick={handleSelect}
               loading={deciding}
-              disabled={!allChecked}
+              disabled={!allChecked || !assignAgentId}
             >
-              Select
+              Select &amp; Assign
             </LoadingButton>
           </>
         ) : (

@@ -257,6 +257,7 @@ export const Candidates = () => {
     const status = params.row.currentStatus;
     const statusColors = {
       Available: "success",
+      "In Process": "secondary",
       Onboard: "info",
       "On Leave": "warning",
       "In Pool": "default",

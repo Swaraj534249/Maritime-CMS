@@ -31,7 +31,6 @@ import { useRowActions } from "../../../hooks/useRowActions";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
 import StatusFilter from "../../../components/StatusFilter/StatusFilter";
-import { useStatusCounts } from "../../../hooks/useStatusCounts";
 import { selectLoggedInUser } from "../../auth/AuthSlice";
 import VacancyForm from "./VacancyForm";
 import { ProposeDialog } from "../../proposal/components/ProposeDialog";
@@ -51,6 +50,7 @@ import {
   setVacancySortModel,
   setVacancySearchValue,
   setVacancyStatusFilter,
+  selectVacancyStatusCounts,
   VACANCY_STATUS_OPTIONS,
 } from "../VacancySlice";
 
@@ -90,13 +90,9 @@ export const Vacancies = () => {
   const searchValue = useSelector(selectVacancySearchValue);
   const statusFilter = useSelector(selectVacancyStatusFilter);
 
-  const {
-    total: statusTotal,
-    byStatus: statusByCount,
-    refetch: refetchStatusCounts,
-  } = useStatusCounts("vacancies", {
-    params: searchValue ? { searchValue } : {},
-  });
+  const { total: statusTotal, byStatus: statusByCount } = useSelector(
+    selectVacancyStatusCounts,
+  );
 
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -163,7 +159,7 @@ export const Vacancies = () => {
     try {
       await dispatch(closeVacancyAsync(id)).unwrap();
       toast.success("Vacancy status updated");
-      refetchStatusCounts();
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       toast.error(err?.message || "Failed to update vacancy");
     }
@@ -196,7 +192,6 @@ export const Vacancies = () => {
   const handleSubmitted = () => {
     handleCloseModal();
     setRefreshKey((k) => k + 1);
-    refetchStatusCounts();
   };
 
   const handlePaginationModelChange = (model) => {

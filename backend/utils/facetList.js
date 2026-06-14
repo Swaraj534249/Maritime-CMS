@@ -22,6 +22,11 @@ async function facetPaginate({
   populate = null,
   dataPipeline = [],
   facets = {},
+  // When set, the status filter is applied INSIDE the data/total branches so the
+  // `byStatus` breakdown can still count every status within the search scope.
+  statusField = null,
+  statusValue = null,
+  withCounts = false,
 }) {
   const sortStage = Object.keys(sort).length ? sort : { _id: -1 };
 
@@ -34,9 +39,31 @@ async function facetPaginate({
     castedFilter = matchFilter;
   }
 
+  // Status filter lives inside the page/total branches (not the top-level
+  // $match) so the counts branch sees all statuses.
+  const statusMatch =
+    statusField && statusValue ? [{ $match: { [statusField]: statusValue } }] : [];
+
+  const countsBranches =
+    withCounts && statusField
+      ? {
+          countsTotal: [{ $count: "count" }],
+          countsByStatus: [
+            { $group: { _id: `$${statusField}`, count: { $sum: 1 } } },
+          ],
+        }
+      : {};
+
   const facetSpec = {
-    data: [{ $sort: sortStage }, { $skip: skip }, { $limit: limit }, ...dataPipeline],
-    totalCount: [{ $count: "count" }],
+    data: [
+      ...statusMatch,
+      { $sort: sortStage },
+      { $skip: skip },
+      { $limit: limit },
+      ...dataPipeline,
+    ],
+    totalCount: [...statusMatch, { $count: "count" }],
+    ...countsBranches,
     ...facets,
   };
 
@@ -51,7 +78,20 @@ async function facetPaginate({
   }
 
   const totalRecords = result?.totalCount?.[0]?.count || 0;
-  return { data, totalRecords, facets: result || {} };
+
+  let statusCounts = null;
+  if (withCounts && statusField) {
+    const byStatus = {};
+    (result?.countsByStatus || []).forEach((s) => {
+      if (s._id) byStatus[s._id] = s.count;
+    });
+    statusCounts = {
+      total: result?.countsTotal?.[0]?.count || 0,
+      byStatus,
+    };
+  }
+
+  return { data, totalRecords, statusCounts, facets: result || {} };
 }
 
 module.exports = { facetPaginate };

@@ -249,6 +249,7 @@ export const {
 
 export const CANDIDATE_STATUS_OPTIONS = [
   "Available",
+  "In Process",
   "Onboard",
   "On Leave",
   "In Pool",

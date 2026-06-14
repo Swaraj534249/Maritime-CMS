@@ -30,6 +30,24 @@ import { fetchEligibleCandidates } from "../ProposalApi";
 import { proposeCandidatesAsync } from "../ProposalSlice";
 import { getErrorMessage } from "../../../utils/getErrorMessage";
 
+const fmtDate = (d) =>
+  d
+    ? new Date(d).toLocaleDateString(undefined, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
+const ageFrom = (dob) => {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const diff = Date.now() - d.getTime();
+  const age = Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+  return age > 0 && age < 120 ? `${age} yrs` : null;
+};
+
 export function ProposeDialog({ open, vacancy, onClose, onProposed }) {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
@@ -111,7 +129,7 @@ export function ProposeDialog({ open, vacancy, onClose, onProposed }) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle sx={{ pr: 6 }}>
         Propose Candidates
         {vacancy?.vacancyId && (
@@ -133,8 +151,8 @@ export function ProposeDialog({ open, vacancy, onClose, onProposed }) {
         <Stack spacing={1.5}>
           <Alert severity="info" sx={{ py: 0.5 }}>
             Selected {selectedCount} / {remainingSlots} available slot(s).
-            Eligible candidates match this vacancy's rank and are not onboard or
-            already selected.
+            Only <strong>Available</strong> candidates matching this vacancy's
+            rank are shown.
           </Alert>
 
           <TextField
@@ -165,31 +183,107 @@ export function ProposeDialog({ open, vacancy, onClose, onProposed }) {
               No eligible candidates found for this vacancy.
             </Typography>
           ) : (
-            <List dense sx={{ maxHeight: 360, overflow: "auto" }}>
-              {filtered.map((c) => (
-                <ListItem key={c._id} disablePadding>
-                  <ListItemButton
-                    onClick={() => toggle(c._id)}
-                    disabled={remainingSlots === 0}
+            <List dense sx={{ maxHeight: 460, overflow: "auto" }}>
+              {filtered.map((c) => {
+                const details = [
+                  ["Rank", c.rank],
+                  ["Email", c.email],
+                  ["Phone", c.phone],
+                  ["Nationality", c.nationality],
+                  ["Age", ageFrom(c.dateOfBirth)],
+                  ["CDC", c.cdcNumber],
+                  ["Available", fmtDate(c.availableFrom)],
+                ].filter(([, v]) => v);
+                return (
+                  <ListItem
+                    key={c._id}
+                    disablePadding
+                    divider
+                    secondaryAction={
+                      c.vesselType ? (
+                        <Chip
+                          label={c.vesselType}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ) : null
+                    }
                   >
-                    <ListItemIcon sx={{ minWidth: 40 }}>
-                      <Checkbox
-                        edge="start"
-                        checked={!!selected[c._id]}
-                        tabIndex={-1}
-                        disableRipple
+                    <ListItemButton
+                      onClick={() => toggle(c._id)}
+                      disabled={remainingSlots === 0}
+                      sx={{ alignItems: "flex-start", py: 1.25 }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40, mt: 0.5 }}>
+                        <Checkbox
+                          edge="start"
+                          checked={!!selected[c._id]}
+                          tabIndex={-1}
+                          disableRipple
+                        />
+                      </ListItemIcon>
+                      <ListItemText
+                        disableTypography
+                        primary={
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            flexWrap="wrap"
+                            useFlexGap
+                            sx={{ pr: 6 }}
+                          >
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              {c.fullName}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              color="primary"
+                              label={`INDOS: ${c.indosNumber || "—"}`}
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </Stack>
+                        }
+                        secondary={
+                          <Box
+                            sx={{
+                              mt: 0.75,
+                              display: "grid",
+                              gridTemplateColumns: {
+                                xs: "1fr 1fr",
+                                sm: "repeat(3, minmax(0, 1fr))",
+                                md: "repeat(4, minmax(0, 1fr))",
+                              },
+                              columnGap: 2,
+                              rowGap: 0.75,
+                              pr: 6,
+                            }}
+                          >
+                            {details.map(([label, value]) => (
+                              <Box key={label} sx={{ minWidth: 0 }}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ display: "block", lineHeight: 1.2 }}
+                                >
+                                  {label}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  noWrap
+                                  title={String(value)}
+                                >
+                                  {value}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        }
                       />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={c.fullName}
-                      secondary={[c.rank, c.email].filter(Boolean).join(" · ")}
-                    />
-                    {c.vesselType ? (
-                      <Chip label={c.vesselType} size="small" variant="outlined" />
-                    ) : null}
-                  </ListItemButton>
-                </ListItem>
-              ))}
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
             </List>
           )}
         </Stack>

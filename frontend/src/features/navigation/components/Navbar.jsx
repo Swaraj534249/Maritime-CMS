@@ -25,6 +25,7 @@ import WorkIcon from "@mui/icons-material/Work";
 import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import MenuIcon from "@mui/icons-material/Menu";
 import { useNavigate } from "react-router-dom";
 import { FeedbackForm } from "../../feedback/components/FeedbackForm";
@@ -115,6 +116,19 @@ export const Navbar = ({ sidebarWidth, onMenuToggle }) => {
                   sx={{ textTransform: "none" }}
                 >
                   Assets
+                </Button>
+              </Tooltip>
+            )}
+
+            {canManageAssets && (
+              <Tooltip title="Help">
+                <Button
+                  color="inherit"
+                  startIcon={<HelpOutlineIcon />}
+                  onClick={() => navigate("/help")}
+                  sx={{ textTransform: "none" }}
+                >
+                  Help
                 </Button>
               </Tooltip>
             )}

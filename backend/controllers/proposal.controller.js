@@ -16,8 +16,18 @@ exports.list = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+exports.getById = asyncHandler(async (req, res) => {
+  const data = await proposalService.getById(req);
+  res.json(data);
+});
+
 exports.statusCounts = asyncHandler(async (req, res) => {
   const result = await proposalService.statusCounts(req);
+  res.json(result);
+});
+
+exports.assignableAgents = asyncHandler(async (req, res) => {
+  const result = await proposalService.assignableAgents(req);
   res.json(result);
 });
 
