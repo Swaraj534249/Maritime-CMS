@@ -3,6 +3,23 @@ const { Schema } = mongoose;
 
 const vesselOwnerSchema = new Schema(
   {
+    agencyId: {
+      type: Schema.Types.ObjectId,
+      ref: "Agency",
+      index: true,
+    },
+    addedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastEditedAt: {
+      type: Date,
+    },
     com_id: { type: String, required: false },
     company_shortname: { type: String, required: false },
     company_name: { type: String, required: false },
@@ -76,6 +93,12 @@ const vesselOwnerSchema = new Schema(
     isDeleted: {
       type: Boolean,
       default: false,
+    },
+
+    // Sequential counter for owner-scoped vacancy ids (e.g. TDF-0001).
+    vacancyCounter: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true, versionKey: false },

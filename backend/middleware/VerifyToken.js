@@ -3,18 +3,15 @@ const jwt = require("jsonwebtoken");
 
 exports.verifyToken = async (req, res, next) => {
   try {
-    // extract the token from request cookies
-    const { token } = req.cookies;
+    const token = req.cookies?.token;
 
-    // if token is not there, return 401 response
-    if (!token) {
+    if (!token || typeof token !== "string" || !token.trim()) {
       return res
         .status(401)
         .json({ message: "Token missing, please login again" });
     }
 
-    // verifies the token
-    const decodedInfo = jwt.verify(token, process.env.SECRET_KEY);
+    const decodedInfo = jwt.verify(token.trim(), process.env.SECRET_KEY);
 
     if (decodedInfo && decodedInfo._id && decodedInfo.email) {
       req.user = {
@@ -22,30 +19,31 @@ exports.verifyToken = async (req, res, next) => {
         email: decodedInfo.email,
         role: decodedInfo.role,
         agencyId: decodedInfo.agencyId || null,
+        agencyName: decodedInfo.agencyName || null,
+        agencyShortName: decodedInfo.agencyShortName || null,
+        agencyEmail: decodedInfo.agencyEmail || null,
+        licenseNumber: decodedInfo.licenseNumber || null,
         industryType: decodedInfo.industryType || null,
       };
 
-      next();
+      return next();
     }
-    // if token is invalid then sends the response accordingly
-    else {
-      return res
-        .status(401)
-        .json({ message: "Invalid Token, please login again" });
-    }
-  } catch (error) {
-    console.log(error);
 
+    return res
+      .status(401)
+      .json({ message: "Invalid Token, please login again" });
+  } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       return res
         .status(401)
         .json({ message: "Token expired, please login again" });
-    } else if (error instanceof jwt.JsonWebTokenError) {
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
       return res
         .status(401)
         .json({ message: "Invalid Token, please login again" });
-    } else {
-      return res.status(500).json({ message: "Internal Server Error" });
     }
+    console.error("[verifyToken]", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
+const { INDUSTRY_TYPES } = require("./schemas/industryTypes");
 
 const agencySchema = new Schema(
   {
@@ -7,6 +8,12 @@ const agencySchema = new Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    shortName: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
     },
     email: {
       type: String,
@@ -34,10 +41,9 @@ const agencySchema = new Schema(
     },
     industryType: {
       type: String,
-      enum: ["maritime", "healthcare", "construction", "hospitality", "other"],
+      enum: INDUSTRY_TYPES,
       required: true,
       default: "maritime",
-      index: true,
     },
     isActive: {
       type: Boolean,
@@ -54,6 +60,14 @@ const agencySchema = new Schema(
     maxAgents: {
       type: Number,
       default: 5, // limit based on subscription
+    },
+    feedbackCounter: {
+      type: Number,
+      default: 0,
+    },
+    vacancyCounter: {
+      type: Number,
+      default: 0,
     },
   },
   {

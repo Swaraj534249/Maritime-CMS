@@ -1,4 +1,5 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { createApiThunk } from "../../config/thunkHelpers";
 import {
   createVesselOwner,
   fetchVesselOwners,
@@ -52,59 +53,29 @@ const initialState = {
   error: null,
 };
 
-export const fetchVesselOwnersAsync = createAsyncThunk(
+export const fetchVesselOwnersAsync = createApiThunk(
   "vesselOwners/fetch",
-  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
-    try {
-      return await fetchVesselOwners(params, signal);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  ({ params = {}, signal } = {}) => fetchVesselOwners(params, signal),
 );
 
-export const createVesselOwnerAsync = createAsyncThunk(
+export const createVesselOwnerAsync = createApiThunk(
   "vesselOwners/create",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await createVesselOwner(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => createVesselOwner(payload),
 );
 
-export const updateVesselOwnerByIdAsync = createAsyncThunk(
+export const updateVesselOwnerByIdAsync = createApiThunk(
   "vesselOwners/update",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateVesselOwnerById(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => updateVesselOwnerById(payload),
 );
 
-export const fetchVesselOwnerByIdAsync = createAsyncThunk(
+export const fetchVesselOwnerByIdAsync = createApiThunk(
   "vesselOwners/getById",
-  async (id, { rejectWithValue }) => {
-    try {
-      return await getVesselOwnerById(id);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (id) => getVesselOwnerById(id),
 );
 
-export const toggleVesselOwnerStatusAsync = createAsyncThunk(
+export const toggleVesselOwnerStatusAsync = createApiThunk(
   "vesselOwners/toggleStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await toggleVesselOwnerStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => toggleVesselOwnerStatus(payload),
 );
 
 const vesselOwnerSlice = createSlice({
@@ -133,9 +104,9 @@ const vesselOwnerSlice = createSlice({
     },
 
     resetVesselOwnerTableState: (state) => {
-      state.paginationModel = { page: 0, pageSize: 10 };
-      state.sortModel = [];
-      state.searchValue = "";
+      state.ui.paginationModel = { page: 0, pageSize: 10 };
+      state.ui.sortModel = [];
+      state.ui.searchValue = "";
     },
   },
   extraReducers: (builder) => {

@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   resetStatuses,
+  selectCreateStatus,
+  selectFetchStatus,
   selectTotalCount,
   selectUpdateStatus,
   selectVesselOwners,
@@ -15,7 +17,6 @@ import {
   setSearchValue,
   fetchVesselOwnersAsync,
   toggleVesselOwnerStatusAsync,
-  resetVesselOwnerTableState,
 } from "../../vesselOwner/VesselOwnerSlice";
 import {
   Button,
@@ -41,12 +42,13 @@ import {
   Badge,
   DialogActions,
 } from "@mui/material";
+import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DirectionsBoatFilledOutlinedIcon from "@mui/icons-material/DirectionsBoatFilledOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DescriptionIcon from "@mui/icons-material/Description";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -58,9 +60,15 @@ import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import VesselOwnerForm from "./VesselOwnerForm";
 import { useRowActions } from "../../../hooks/useRowActions";
-import { getFileIcon, getFileURL, isPDF } from "../../../utils/fileUtils";
-import { useDocumentActions } from "../../../hooks/useDocumentActions";
 import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
+import InitialsAvatar from "../../../components/InitialsAvatar/InitialsAvatar";
+import FilesCountChip from "../../../components/Files/FilesCountChip";
+import { ListPageHeader } from "../../navigation/components/ListPageHeader";
+import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
+import {
+  buildVesselOwnerDocumentSections,
+  countVesselOwnerFiles,
+} from "../../../utils/documentSections";
 
 export const VesselOwners = () => {
   const navigate = useNavigate();
@@ -68,7 +76,9 @@ export const VesselOwners = () => {
 
   const vesselOwners = useSelector(selectVesselOwners);
   const totalCount = useSelector(selectTotalCount);
+  const fetchStatus = useSelector(selectFetchStatus);
   const updateStatus = useSelector(selectUpdateStatus);
+  const createStatus = useSelector(selectCreateStatus);
   const aggregates = useSelector(selectVesselOwnersAggregates);
   const vesselCountByOwner = aggregates?.vesselCountByOwner || {};
   const paginationModel = useSelector(selectPaginationModel);
@@ -78,16 +88,22 @@ export const VesselOwners = () => {
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
-  const [selectedDocuments, setSelectedDocuments] = useState({
-    contract: null,
-    license: null,
-  });
+  const [entityForFilesDialog, setEntityForFilesDialog] = useState(null);
+  const formSubmitting = useFormSubmitting("vesselOwner-form");
+
+  const vesselOwnerFileSections = useMemo(
+    () =>
+      buildVesselOwnerDocumentSections(entityForFilesDialog, {
+        company_logo: <ArticleIcon color="primary" fontSize="small" />,
+        contract: <ArticleIcon color="primary" fontSize="small" />,
+        license: <ArticleIcon color="primary" fontSize="small" />,
+      }),
+    [entityForFilesDialog],
+  );
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { anchorEl, open, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
-
-  const { openDocument } = useDocumentActions();
 
   const sortFieldMap = useMemo(
     () => ({
@@ -153,7 +169,7 @@ export const VesselOwners = () => {
     }
 
     if (updateStatus === "rejected") {
-      toast.error("Failed to update vessel status");
+      toast.error("Failed to update vessel owner status");
       dispatch(resetStatuses());
     }
   }, [updateStatus, dispatch]);
@@ -200,10 +216,7 @@ export const VesselOwners = () => {
   };
 
   const handleOpenDocuments = (vesselOwner) => {
-    setSelectedDocuments({
-      contract: vesselOwner.contract || null,
-      license: vesselOwner.license || null,
-    });
+    setEntityForFilesDialog(vesselOwner);
     setOpenDocumentsDialog(true);
   };
 
@@ -213,28 +226,15 @@ export const VesselOwners = () => {
       params.row.company_name || ""
     }`.trim();
     const rawData = params.row._raw;
-    const logoURL = rawData?.company_logo?.path
-      ? getFileURL(rawData.company_logo.path)
-      : null;
 
     return (
       <Tooltip title={fullName} arrow>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {logoURL ? (
-            <Avatar
-              src={logoURL}
-              alt={fullName}
-              sx={{ width: 32, height: 32 }}
-              variant="rounded"
-            />
-          ) : (
-            <Avatar
-              sx={{ width: 32, height: 32, bgcolor: "primary.main" }}
-              variant="rounded"
-            >
-              {fullName.charAt(0).toUpperCase()}
-            </Avatar>
-          )}
+          <InitialsAvatar
+            label={params.row.company_shortname || fullName}
+            sx={{ width: 32, height: 32 }}
+            variant="rounded"
+          />
           <div
             style={{
               cursor: "pointer",
@@ -293,27 +293,13 @@ export const VesselOwners = () => {
 
   const renderFilesCell = (params) => {
     const rawData = params.row._raw;
-    const hasContract =
-      rawData?.contract?.main?.filename || rawData?.contract?.old?.filename;
-    const hasLicense =
-      rawData?.license?.main?.filename || rawData?.license?.old?.filename;
-    const docsCount = (hasContract ? 1 : 0) + (hasLicense ? 1 : 0);
+    const fileCount = countVesselOwnerFiles(rawData);
 
     return (
-      <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-        {docsCount > 0 ? (
-          <Chip
-            icon={<InsertDriveFileIcon />}
-            label={`${docsCount} Doc${docsCount > 1 ? "s" : ""}`}
-            size="small"
-            color="primary"
-            onClick={() => handleOpenDocuments(rawData)}
-            sx={{ cursor: "pointer" }}
-          />
-        ) : (
-          <span style={{ color: "#999", fontSize: 12 }}>No files</span>
-        )}
-      </Box>
+      <FilesCountChip
+        count={fileCount}
+        onClick={() => handleOpenDocuments(rawData)}
+      />
     );
   };
 
@@ -396,12 +382,31 @@ export const VesselOwners = () => {
     },
     {
       field: "files",
-      headerName: "Documents",
+      headerName: "Files",
       flex: 1,
       minWidth: 120,
       sortable: false,
       filterable: false,
       renderCell: renderFilesCell,
+    },
+    {
+      field: "addedBy",
+      headerName: "Added By",
+      flex: 1.4,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const v = params.row._raw;
+        return (
+          <AddedByCell
+            addedBy={v.addedBy}
+            createdAt={v.createdAt}
+            updatedBy={v.updatedBy}
+            updatedAt={v.lastEditedAt}
+          />
+        );
+      },
     },
     {
       field: "actions",
@@ -419,38 +424,41 @@ export const VesselOwners = () => {
   return (
     <Stack justifyContent={"center"} alignItems={"center"}>
       <Stack mt={0} mb={0} sx={{ width: "100%" }}>
-        <Stack
-          mb={1}
-          direction="row"
-          width="100%"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ px: 1 }}
-        >
-          <Typography variant="h6">Vessel Owners</Typography>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Search
-              value={searchValue}
-              onDebouncedChange={(val) => handleSearch(val)}
-              delay={800}
-              placeholder="Search vessel owners..."
-              sx={{ width: { xs: "140px", sm: "220px", md: "320px" } }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddNew}
-              sx={{ textTransform: "none" }}
-            >
-              Add Vessel Owner
-            </Button>
-          </Stack>
-        </Stack>
+        <ListPageHeader
+          actions={
+            <>
+              <Search
+                value={searchValue}
+                onDebouncedChange={(val) => handleSearch(val)}
+                delay={800}
+                placeholder="Search vessel owners..."
+                sx={{ width: { xs: "140px", sm: "220px", md: "320px" } }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddNew}
+                sx={{ textTransform: "none" }}
+              >
+                Add Vessel Owner
+              </Button>
+            </>
+          }
+        />
 
         <DataTable
           rows={rows}
           columns={columns}
-          sx={{ maxWidth: "100%" }}
+          loading={fetchStatus === "pending"}
+          sx={{
+            maxWidth: "100%",
+            "& .MuiDataGrid-cell": {
+              display: "flex",
+              alignItems: "center",
+              py: 0.5,
+            },
+          }}
+          getRowHeight={() => "auto"}
           showToolbar={false}
           paginationModel={paginationModel}
           onPaginationModelChange={handlePaginationModelChange}
@@ -479,28 +487,12 @@ export const VesselOwners = () => {
 
         <DocumentsDialog
           open={openDocumentsDialog}
-          onClose={() => setOpenDocumentsDialog(false)}
-          title="Documents"
-          sections={[
-            {
-              key: "contract",
-              title: "Contract",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.contract,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "license",
-              title: "License",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.license,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-          ]}
+          onClose={() => {
+            setOpenDocumentsDialog(false);
+            setEntityForFilesDialog(null);
+          }}
+          title="Vessel Owner Files"
+          sections={vesselOwnerFileSections}
         />
 
         <Dialog
@@ -543,13 +535,19 @@ export const VesselOwners = () => {
               py: 2,
             }}
           >
-            <Button variant="outlined" onClick={handleCloseModal}>
+            <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
               Cancel
             </Button>
 
-            <Button type="submit" form="vesselOwner-form" variant="contained">
+            <LoadingButton
+              type="submit"
+              form="vesselOwner-form"
+              variant="contained"
+              loading={formSubmitting}
+              disabled={formSubmitting}
+            >
               {editData ? "Update" : "Create"}
-            </Button>
+            </LoadingButton>
           </DialogActions>
         </Dialog>
       </Stack>

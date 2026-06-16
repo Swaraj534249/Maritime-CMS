@@ -1,12 +1,22 @@
 import { useSelector } from "react-redux";
 import { selectLoggedInUser } from "../AuthSlice";
-import { Navigate } from "react-router";
+import { Navigate } from "react-router-dom";
 
 export const Protected = ({ children }) => {
   const loggedInUser = useSelector(selectLoggedInUser);
 
-  if (loggedInUser?.isVerified) {
-    return children;
+  if (!loggedInUser) {
+    return <Navigate to="/login" replace />;
   }
-  return <Navigate to={"/login"} replace={true} />;
+
+  const canAccess =
+    loggedInUser.role === "SUPER_ADMIN" ||
+    loggedInUser.status === "active" ||
+    loggedInUser.status === "verified";
+
+  if (!canAccess) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };

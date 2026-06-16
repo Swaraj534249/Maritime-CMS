@@ -1,4 +1,3 @@
-// components/documents/DocumentSection.jsx
 import {
   Box,
   Stack,
@@ -8,21 +7,21 @@ import {
   ListItemText,
   IconButton,
   Tooltip,
-  Badge,
+  Chip,
 } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import DownloadIcon from "@mui/icons-material/Download";
-import { getFileIcon, isPDF } from "../../utils/fileUtils";
+import { getFileIcon, formatFileSize } from "../../utils/fileUtils";
 import { useDocumentActions } from "../../hooks/useDocumentActions";
+import { normalizeDocSection, hasStoredFile } from "../../utils/documentSections";
 
 const FileItem = ({ file, label, borderColor, bgColor }) => {
   const { openDocument } = useDocumentActions();
 
-  if (!file?.filename) return null;
+  if (!hasStoredFile(file)) return null;
 
   return (
     <ListItemButton
-      onClick={() => openDocument(file, process.env.REACT_APP_API_URL)}
+      onClick={() => openDocument(file)}
       sx={{
         border: `1px solid ${borderColor}`,
         borderRadius: 1,
@@ -35,28 +34,28 @@ const FileItem = ({ file, label, borderColor, bgColor }) => {
 
       <ListItemText
         primary={
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Badge
-              badgeContent={label}
-              color={label === "Main" ? "success" : "default"}
-            />
-            <Typography variant="body2">
+          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+            {label ? (
+              <Chip
+                label={label}
+                size="small"
+                color={label === "Main" ? "success" : "default"}
+                sx={{ height: 22 }}
+              />
+            ) : null}
+            <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
               {file.originalName || file.filename}
             </Typography>
           </Stack>
         }
-        secondary={`${(file.size / 1024).toFixed(2)} KB • ${new Date(
+        secondary={`${formatFileSize(file.size)} • ${new Date(
           file.uploadedAt,
         ).toLocaleDateString()}`}
       />
 
-      <Tooltip title={isPDF(file) ? "Open in new tab" : "Download"}>
+      <Tooltip title="Open in new tab">
         <IconButton edge="end" size="small">
-          {isPDF(file) ? (
-            <OpenInNewIcon fontSize="small" />
-          ) : (
-            <DownloadIcon fontSize="small" />
-          )}
+          <OpenInNewIcon fontSize="small" />
         </IconButton>
       </Tooltip>
     </ListItemButton>
@@ -64,7 +63,13 @@ const FileItem = ({ file, label, borderColor, bgColor }) => {
 };
 
 const DocumentSection = ({ title, icon, documents }) => {
-  if (!documents?.main?.filename && !documents?.old?.filename) return null;
+  const normalized = normalizeDocSection(documents);
+  if (!normalized) return null;
+
+  const showMain = hasStoredFile(normalized.main);
+  const showOld = hasStoredFile(normalized.old);
+
+  if (!showMain && !showOld) return null;
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -75,19 +80,23 @@ const DocumentSection = ({ title, icon, documents }) => {
         </Typography>
       </Stack>
 
-      <FileItem
-        file={documents.main}
-        label="Main"
-        borderColor="#4caf50"
-        bgColor="#f1f8f4"
-      />
+      {showMain && (
+        <FileItem
+          file={normalized.main}
+          label="Main"
+          borderColor="#4caf50"
+          bgColor="#f1f8f4"
+        />
+      )}
 
-      <FileItem
-        file={documents.old}
-        label="Old"
-        borderColor="#e0e0e0"
-        bgColor="transparent"
-      />
+      {showOld && (
+        <FileItem
+          file={normalized.old}
+          label="Old"
+          borderColor="#e0e0e0"
+          bgColor="transparent"
+        />
+      )}
     </Box>
   );
 };

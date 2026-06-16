@@ -4,6 +4,8 @@ import {
   fetchVesselsAsync,
   toggleVesselStatusAsync,
   selectTotalCount,
+  selectCreateStatus,
+  selectFetchStatus,
   selectUpdateStatus,
   selectVesselOwnerContext,
   selectVessels,
@@ -24,16 +26,16 @@ import {
   Menu,
   MenuItem,
   Box,
-  Avatar,
   Chip,
   IconButton as MuiIconButton,
   DialogActions,
 } from "@mui/material";
+import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import CloseIcon from "@mui/icons-material/Close";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ArticleIcon from "@mui/icons-material/Article";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
@@ -41,21 +43,30 @@ import VesselForm from "./VesselForm";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useRowActions } from "../../../hooks/useRowActions";
-import { useDocumentActions } from "../../../hooks/useDocumentActions";
-import { getFileIcon, getFileURL, isPDF } from "../../../utils/fileUtils";
 import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
+import InitialsAvatar from "../../../components/InitialsAvatar/InitialsAvatar";
+import FilesCountChip from "../../../components/Files/FilesCountChip";
+import { ListPageHeader } from "../../navigation/components/ListPageHeader";
+import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
+import {
+  buildVesselDocumentSections,
+  countVesselFiles,
+} from "../../../utils/documentSections";
 import {
   setPaginationModel,
   setSearchValue,
   setSortModel,
 } from "../../vessel/VesselSlice";
+import { usePageTitle } from "../../navigation/PageTitleContext";
 
 export const Vessels = () => {
   const { id: vesselOwnerId } = useParams();
   const dispatch = useDispatch();
   const vessels = useSelector(selectVessels);
   const totalCount = useSelector(selectTotalCount);
+  const fetchStatus = useSelector(selectFetchStatus);
   const updateStatus = useSelector(selectUpdateStatus);
+  const createStatus = useSelector(selectCreateStatus);
   const owner = useSelector(selectVesselOwnerContext);
   const paginationModel = useSelector(selectPaginationModel);
   const sortModel = useSelector(selectSortModel);
@@ -65,13 +76,26 @@ export const Vessels = () => {
   const [editData, setEditData] = useState(null);
 
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
-  const [selectedDocuments, setSelectedDocuments] = useState({
-    vessel_documents: null,
-  });
+  const [entityForFilesDialog, setEntityForFilesDialog] = useState(null);
+  const formSubmitting = useFormSubmitting("vessel-form");
   const { anchorEl, open, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
 
-  const { openDocument } = useDocumentActions();
+  const vesselPageTitle = useMemo(() => {
+    if (!vesselOwnerId) return "Vessels";
+    const label = owner?.shortName || owner?.name;
+    return label ? `Vessels of ${label}` : "Vessels";
+  }, [vesselOwnerId, owner?.shortName, owner?.name]);
+  usePageTitle(vesselPageTitle);
+
+  const vesselFileSections = useMemo(
+    () =>
+      buildVesselDocumentSections(entityForFilesDialog, {
+        vessel_image: <ArticleIcon color="primary" fontSize="small" />,
+        vessel_documents: <ArticleIcon color="primary" fontSize="small" />,
+      }),
+    [entityForFilesDialog],
+  );
 
   const sortFieldMap = useMemo(
     () => ({
@@ -188,9 +212,7 @@ export const Vessels = () => {
   };
 
   const handleOpenDocuments = (vessel) => {
-    setSelectedDocuments({
-      vessel_documents: vessel.vessel_documents || null,
-    });
+    setEntityForFilesDialog(vessel);
     setOpenDocumentsDialog(true);
   };
 
@@ -198,28 +220,11 @@ export const Vessels = () => {
   const renderVesselCell = (params) => {
     const fullName = `${params.row.vesselname || ""}`.trim();
     const rawData = params.row._raw;
-    const imageURL = rawData?.vessel_image?.path
-      ? getFileURL(rawData.vessel_image.path)
-      : null;
 
     return (
       <Tooltip title={fullName} arrow>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {imageURL ? (
-            <Avatar
-              src={imageURL}
-              alt={fullName}
-              sx={{ width: 32, height: 32 }}
-              variant="rounded"
-            />
-          ) : (
-            <Avatar
-              sx={{ width: 32, height: 32, bgcolor: "primary.main" }}
-              variant="rounded"
-            >
-              {fullName.charAt(0).toUpperCase()}
-            </Avatar>
-          )}
+          <InitialsAvatar label={fullName} sx={{ width: 32, height: 32 }} variant="rounded" />
           <div
             style={{
               cursor: "pointer",
@@ -257,26 +262,13 @@ export const Vessels = () => {
 
   const renderFilesCell = (params) => {
     const rawData = params.row._raw;
-    const hasVessel_documents =
-      rawData?.vessel_documents?.main?.filename ||
-      rawData?.vessel_documents?.old?.filename;
-    const docsCount = hasVessel_documents ? 1 : 0;
+    const fileCount = countVesselFiles(rawData);
 
     return (
-      <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-        {docsCount > 0 ? (
-          <Chip
-            icon={<InsertDriveFileIcon />}
-            label={`${docsCount} Doc${docsCount > 1 ? "s" : ""}`}
-            size="small"
-            color="primary"
-            onClick={() => handleOpenDocuments(rawData)}
-            sx={{ cursor: "pointer" }}
-          />
-        ) : (
-          <span style={{ color: "#999", fontSize: 12 }}>No files</span>
-        )}
-      </Box>
+      <FilesCountChip
+        count={fileCount}
+        onClick={() => handleOpenDocuments(rawData)}
+      />
     );
   };
 
@@ -338,12 +330,31 @@ export const Vessels = () => {
     },
     {
       field: "files",
-      headerName: "Documents",
+      headerName: "Files",
       flex: 1,
       minWidth: 120,
       sortable: false,
       filterable: false,
       renderCell: renderFilesCell,
+    },
+    {
+      field: "addedBy",
+      headerName: "Added By",
+      flex: 1.4,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const v = params.row._raw;
+        return (
+          <AddedByCell
+            addedBy={v.addedBy}
+            createdAt={v.createdAt}
+            updatedBy={v.updatedBy}
+            updatedAt={v.lastEditedAt}
+          />
+        );
+      },
     },
     {
       field: "actions",
@@ -361,42 +372,41 @@ export const Vessels = () => {
   return (
     <Stack justifyContent="center" alignItems="center">
       <Stack mt={0} mb={0} sx={{ width: "100%" }}>
-        <Stack
-          mb={1}
-          direction="row"
-          width="100%"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ px: 1 }}
-        >
-          {owner && (
-            <Typography variant="h6">
-              Vessels of {owner.shortName || owner.name}
-            </Typography>
-          )}
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Search
-              value={searchValue}
-              onDebouncedChange={(v) => handleSearch(v)}
-              delay={800}
-              placeholder="Search vessels..."
-              sx={{ width: { xs: 140, sm: 220, md: 320 } }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddNew}
-              sx={{ textTransform: "none" }}
-            >
-              Add Vessel
-            </Button>
-          </Stack>
-        </Stack>
+        <ListPageHeader
+          actions={
+            <>
+              <Search
+                value={searchValue}
+                onDebouncedChange={(v) => handleSearch(v)}
+                delay={800}
+                placeholder="Search vessels..."
+                sx={{ width: { xs: 140, sm: 220, md: 320 } }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddNew}
+                sx={{ textTransform: "none" }}
+              >
+                Add Vessel
+              </Button>
+            </>
+          }
+        />
 
         <DataTable
           rows={rows}
           columns={columns}
-          sx={{ maxWidth: "100%" }}
+          loading={fetchStatus === "pending"}
+          sx={{
+            maxWidth: "100%",
+            "& .MuiDataGrid-cell": {
+              display: "flex",
+              alignItems: "center",
+              py: 0.5,
+            },
+          }}
+          getRowHeight={() => "auto"}
           showToolbar={false}
           paginationModel={paginationModel}
           onPaginationModelChange={handlePaginationModelChange}
@@ -425,19 +435,12 @@ export const Vessels = () => {
 
         <DocumentsDialog
           open={openDocumentsDialog}
-          onClose={() => setOpenDocumentsDialog(false)}
-          title="Documents"
-          sections={[
-            {
-              key: "vesselDocs",
-              title: "Vessel Documents",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.vessel_documents,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-          ]}
+          onClose={() => {
+            setOpenDocumentsDialog(false);
+            setEntityForFilesDialog(null);
+          }}
+          title="Vessel Files"
+          sections={vesselFileSections}
         />
 
         <Dialog
@@ -481,13 +484,19 @@ export const Vessels = () => {
               py: 2,
             }}
           >
-            <Button variant="outlined" onClick={handleCloseModal}>
+            <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
               Cancel
             </Button>
 
-            <Button type="submit" form="vessel-form" variant="contained">
+            <LoadingButton
+              type="submit"
+              form="vessel-form"
+              variant="contained"
+              loading={formSubmitting}
+              disabled={formSubmitting}
+            >
               {editData ? "Update" : "Create"}
-            </Button>
+            </LoadingButton>
           </DialogActions>
         </Dialog>
       </Stack>

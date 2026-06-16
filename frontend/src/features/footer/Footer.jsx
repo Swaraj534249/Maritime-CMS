@@ -111,6 +111,8 @@ export const Footer = () => {
                 width={"100%"}
                 style={{ objectFit: "contain" }}
                 alt="QR Code"
+                loading="lazy"
+                decoding="async"
               />
             </Box>
 
@@ -127,6 +129,8 @@ export const Footer = () => {
                   style={{ width: "100%", height: "100%", cursor: "pointer" }}
                   src={appStorePng}
                   alt="AppStore"
+                  loading="lazy"
+                  decoding="async"
                 />
               </Stack>
             </Stack>

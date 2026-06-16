@@ -1,7 +1,9 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { createApiThunk } from "../../config/thunkHelpers";
 import {
   createCandidate,
   fetchCandidates,
+  fetchCandidateStatusCounts,
   getCandidateById,
   toggleCandidateStatus,
   updateCandidateById,
@@ -42,6 +44,7 @@ const initialState = {
   current: null,
   selectedByUser: null,
   availableCandidates: [],
+  statusCounts: { total: 0, byStatus: {} },
 
   status: {
     fetch: "idle",
@@ -54,86 +57,50 @@ const initialState = {
     paginationModel: { page: 0, pageSize: 10 },
     sortModel: [],
     searchValue: "",
+    statusFilter: "",
   },
 
   error: null,
 };
 
-export const fetchCandidatesAsync = createAsyncThunk(
+export const fetchCandidatesAsync = createApiThunk(
   "candidates/fetch",
-  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
-    try {
-      return await fetchCandidates(params, signal);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  ({ params = {}, signal } = {}) => fetchCandidates(params, signal),
 );
 
-export const createCandidateAsync = createAsyncThunk(
+export const createCandidateAsync = createApiThunk(
   "candidates/create",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await createCandidate(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => createCandidate(payload),
 );
 
-export const updateCandidateByIdAsync = createAsyncThunk(
+export const updateCandidateByIdAsync = createApiThunk(
   "candidates/update",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateCandidateById(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => updateCandidateById(payload),
 );
 
-export const fetchCandidateByIdAsync = createAsyncThunk(
+export const fetchCandidateByIdAsync = createApiThunk(
   "candidates/getById",
-  async (id, { rejectWithValue }) => {
-    try {
-      return await getCandidateById(id);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (id) => getCandidateById(id),
 );
 
-export const toggleCandidateStatusAsync = createAsyncThunk(
+export const toggleCandidateStatusAsync = createApiThunk(
   "candidates/toggleStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await toggleCandidateStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => toggleCandidateStatus(payload),
 );
 
-export const updateCandidateWorkStatusAsync = createAsyncThunk(
+export const updateCandidateWorkStatusAsync = createApiThunk(
   "candidates/updateWorkStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateCandidateWorkStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (payload) => updateCandidateWorkStatus(payload),
 );
 
-export const fetchAvailableCandidatesAsync = createAsyncThunk(
+export const fetchAvailableCandidatesAsync = createApiThunk(
   "candidates/fetchAvailable",
-  async (params = {}, { rejectWithValue }) => {
-    try {
-      return await getAvailableCandidates(params);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  }
+  (params = {}) => getAvailableCandidates(params),
+);
+
+export const fetchCandidateStatusCountsAsync = createApiThunk(
+  "candidates/statusCounts",
+  ({ params = {}, signal } = {}) => fetchCandidateStatusCounts(params, signal),
 );
 
 const candidateSlice = createSlice({
@@ -157,6 +124,9 @@ const candidateSlice = createSlice({
     },
     setSearchValue(state, action) {
       state.ui.searchValue = action.payload;
+    },
+    setStatusFilter(state, action) {
+      state.ui.statusFilter = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -259,6 +229,11 @@ const candidateSlice = createSlice({
       .addCase(fetchAvailableCandidatesAsync.rejected, (state, action) => {
         state.status.available = "rejected";
         state.error = action.payload;
+      })
+
+      // Status counts (for the status dropdown)
+      .addCase(fetchCandidateStatusCountsAsync.fulfilled, (state, action) => {
+        state.statusCounts = action.payload || { total: 0, byStatus: {} };
       });
   },
 });
@@ -269,7 +244,17 @@ export const {
   setPaginationModel,
   setSortModel,
   setSearchValue,
+  setStatusFilter,
 } = candidateSlice.actions;
+
+export const CANDIDATE_STATUS_OPTIONS = [
+  "Available",
+  "In Process",
+  "Onboard",
+  "On Leave",
+  "In Pool",
+  "Not Available",
+];
 
 export default candidateSlice.reducer;
 
@@ -303,6 +288,8 @@ export const selectRankGroups = (state) =>
 export const selectPaginationModel = (state) => base(state).ui.paginationModel;
 export const selectSortModel = (state) => base(state).ui.sortModel;
 export const selectSearchValue = (state) => base(state).ui.searchValue;
+export const selectStatusFilter = (state) => base(state).ui.statusFilter;
 
 export const selectAgency = (state) => base(state).list.context.agency;
 export const selectAvailableCandidates = (state) => base(state).availableCandidates;
+export const selectCandidateStatusCounts = (state) => base(state).statusCounts;

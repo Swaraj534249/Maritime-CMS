@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import * as yup from "yup";
 import { createVesselAsync, updateVesselByIdAsync } from "../VesselSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { fetchVesselTypes } from "../../assets/vesselType/VesselTypeApi";
+import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
+import { getErrorMessage } from "../../../utils/getErrorMessage";
 
 // Validation Schema
 const vesselSchema = yup
@@ -37,7 +40,8 @@ const vesselFields = [
   {
     name: "vesseltype",
     label: "Type",
-    type: "text",
+    type: "select",
+    options: [],
     gridSize: { xs: 12, sm: 6 },
   },
   {
@@ -80,6 +84,34 @@ const VesselForm = ({
 }) => {
   const dispatch = useDispatch();
   const isEditMode = Boolean(initialData?._id);
+  const [vesselTypeOptions, setVesselTypeOptions] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await fetchVesselTypes({
+          all: "true",
+          activeOnly: "true",
+        });
+        if (active) setVesselTypeOptions((data || []).map((v) => v.typeName));
+      } catch (err) {
+        // Non-blocking: dropdown will stay empty if vessel types fail to load
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fields = useMemo(() => {
+    const opts = [...vesselTypeOptions];
+    const current = initialData?.vesseltype;
+    if (current && !opts.includes(current)) opts.unshift(current);
+    return vesselFields.map((field) =>
+      field.name === "vesseltype" ? { ...field, options: opts } : field,
+    );
+  }, [vesselTypeOptions, initialData?.vesseltype]);
 
   const defaultValues = {
     vesselname: initialData?.vesselname || "",
@@ -101,46 +133,56 @@ const VesselForm = ({
 
   const handleFormSubmit = async (formData, uploadedFiles) => {
     try {
-      const data = new FormData();
-      data.append("uploadFolder", "vessels");
+      if (!formData.vesselname?.trim()) {
+        toast.error("Vessel name is required before saving files");
+        return;
+      }
 
-      Object.entries(formData).forEach(([key, val]) => {
-        if (val === undefined || val === null || val === "") return;
-        data.append(key, val);
+      await submitEntityWithFiles({
+        formData,
+        uploadedFiles,
+        uploadFolder: "vessels",
+        uploadFormFields: { vesselname: formData.vesselname },
+        isEditMode,
+        entityId: initialData?._id,
+        buildFormData: (fd) => {
+          const data = new FormData();
+          data.append("uploadFolder", "vessels");
+          Object.entries(fd).forEach(([key, val]) => {
+            if (val === undefined || val === null || val === "") return;
+            data.append(key, val);
+          });
+          if (!isEditMode && vesselOwnerId) {
+            data.append("vesselOwner", vesselOwnerId);
+          }
+          return data;
+        },
+        create: (data) => dispatch(createVesselAsync(data)).unwrap(),
+        update: (data) => dispatch(updateVesselByIdAsync(data)).unwrap(),
       });
 
-      if (!isEditMode && vesselOwnerId) {
-        data.append("vesselOwner", vesselOwnerId);
-      }
-
-      if (uploadedFiles?.vessel_image) {
-        data.append("vessel_image", uploadedFiles.vessel_image);
-      }
-
-      if (uploadedFiles.vessel_documents) {
-        data.append("vessel_documents", uploadedFiles.vessel_documents);
-      }
-      console.log("formData", formData, uploadedFiles);
-
-      if (isEditMode) {
-        data.append("_id", initialData._id);
-        await dispatch(updateVesselByIdAsync(data)).unwrap();
-        toast.success("Vessel updated successfully");
-      } else {
-        await dispatch(createVesselAsync(data)).unwrap();
-        toast.success("Vessel created successfully");
-      }
-
+      toast.success(
+        isEditMode ? "Vessel updated successfully" : "Vessel created successfully",
+      );
       onClose();
     } catch (error) {
       console.error("Vessel submit error:", error);
+      if (error instanceof EntitySubmitError && error.partialUpload) {
+        toast.warning(
+          `${error.savedFileCount} file(s) saved. Failed: ${error.message}`,
+          { autoClose: 8000 },
+        );
+        onClose();
+        return;
+      }
+      toast.error(getErrorMessage(error, "Failed to save vessel"));
     }
   };
 
   return (
     <DynamicFormBuilder
       formId={formId}
-      fields={vesselFields}
+      fields={fields}
       validationSchema={vesselSchema}
       defaultValues={defaultValues}
       onSubmit={handleFormSubmit}

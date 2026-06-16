@@ -1,215 +1,285 @@
+import React, { useEffect, useState } from "react";
 import {
-  Avatar,
+  Box,
   Button,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Grid,
   Paper,
   Stack,
   Typography,
-  useTheme,
-  TextField,
-  useMediaQuery,
 } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { useDispatch, useSelector } from "react-redux";
-import { selectUserInfo } from "../UserSlice";
-import { selectLoggedInUser } from "../../auth/AuthSlice";
-// import { addAddressAsync, resetAddressAddStatus, resetAddressDeleteStatus, resetAddressUpdateStatus, selectAddressAddStatus, selectAddressDeleteStatus, selectAddressErrors, selectAddressStatus, selectAddressUpdateStatus, selectAddresses } from '../../address/AddressSlice'
-// import { Address } from '../../address/components/Address'
-import { useForm } from "react-hook-form";
-import { LoadingButton } from "@mui/lab";
+import {
+  selectLoggedInUser,
+  setLoggedInUser,
+} from "../../auth/AuthSlice";
+import {
+  fetchLoggedInUserById,
+  updateUserProfile,
+} from "../UserApi";
+import { ProfileForm } from "./ProfileForm";
+import {
+  useFileDisplayUrl,
+  invalidateFileDisplayCache,
+} from "../../../hooks/useFileDisplayUrl";
 import { toast } from "react-toastify";
+import { usePageTitle } from "../../navigation/PageTitleContext";
+import { getProfileBadgeLabel } from "../../../utils/formatLabel";
+
+function formatDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString();
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <Stack spacing={0.25} sx={{ py: 1 }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="body2">{value || "—"}</Typography>
+    </Stack>
+  );
+}
+
+function roleLabel(user) {
+  if (user?.userType) return user.userType;
+  if (user?.role === "AGENCY_ADMIN") return "Agency Admin";
+  if (user?.role === "SUPER_ADMIN") return "Super Admin";
+  if (user?.role === "AGENT") return "Agent";
+  return null;
+}
+
+function ProfileAvatar({ user }) {
+  const avatarUrl = useFileDisplayUrl(user?.avatar);
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const initials = (user?.name || "A")
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const showImage = avatarUrl && user?.avatar?.path && !imgFailed;
+
+  React.useEffect(() => {
+    setImgFailed(false);
+  }, [user?.avatar?.path]);
+
+  return (
+    <Box
+      sx={{
+        width: 96,
+        height: 96,
+        borderRadius: "50%",
+        bgcolor: "primary.main",
+        color: "primary.contrastText",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        fontWeight: 700,
+        fontSize: "1.5rem",
+      }}
+    >
+      {showImage ? (
+        <Box
+          component="img"
+          src={avatarUrl}
+          alt={user?.name}
+          onError={() => setImgFailed(true)}
+          sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        initials
+      )}
+    </Box>
+  );
+}
 
 export const UserProfile = () => {
   const dispatch = useDispatch();
-  const {
-    register,
-    handleSubmit,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm();
-  // const status=useSelector(selectAddressStatus)
-  // const userInfo = useSelector(selectUserInfo);
   const loggedInUser = useSelector(selectLoggedInUser);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
 
-  // const addresses=useSelector(selectAddresses)
-  const theme = useTheme();
-  const [addAddress, setAddAddress] = useState(false);
+  usePageTitle("Profile");
 
-  // const addressAddStatus=useSelector(selectAddressAddStatus)
-  // const addressUpdateStatus=useSelector(selectAddressUpdateStatus)
-  // const addressDeleteStatus=useSelector(selectAddressDeleteStatus)
-
-  const is900 = useMediaQuery(theme.breakpoints.down(900));
-  const is480 = useMediaQuery(theme.breakpoints.down(480));
+  const userId = loggedInUser?._id;
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
-  }, []);
+    if (!userId) return;
 
-  // useEffect(()=>{
-  //     if(addressAddStatus==='fulfilled'){
-  //         toast.success("Address added")
-  //     }
-  //     else if(addressAddStatus==='rejected'){
-  //         toast.error("Error adding address, please try again later")
-  //     }
-  // },[addressAddStatus])
+    let cancelled = false;
+    setLoading(true);
 
-  // useEffect(()=>{
+    fetchLoggedInUserById(userId)
+      .then((data) => {
+        if (!cancelled) setProfile(data);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Could not load profile");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  //     if(addressUpdateStatus==='fulfilled'){
-  //         toast.success("Address updated")
-  //     }
-  //     else if(addressUpdateStatus==='rejected'){
-  //         toast.error("Error updating address, please try again later")
-  //     }
-  // },[addressUpdateStatus])
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
-  // useEffect(()=>{
+  const user = profile || loggedInUser;
+  const badgeLabel = getProfileBadgeLabel(user);
+  const canEditProfile =
+    user?.role !== "AGENT" || user?.status === "active";
 
-  //     if(addressDeleteStatus==='fulfilled'){
-  //         toast.success("Address deleted")
-  //     }
-  //     else if(addressDeleteStatus==='rejected'){
-  //         toast.error("Error deleting address, please try again later")
-  //     }
-  // },[addressDeleteStatus])
+  const handleProfileUpdate = async ({ id, data, s3Uploads }) => {
+    if (s3Uploads?.avatar?.key) {
+      invalidateFileDisplayCache(profile?.avatar?.path);
+    }
+    const updated = await updateUserProfile({ id, data, s3Uploads });
+    const agency = updated.agencyId;
+    const merged = {
+      ...updated,
+      agencyId: agency?._id || agency || updated.agencyId,
+      agencyName: agency?.name || loggedInUser?.agencyName,
+      agencyShortName: agency?.shortName || loggedInUser?.agencyShortName,
+    };
+    dispatch(setLoggedInUser(merged));
+    setProfile(updated);
+    setEditOpen(false);
+    toast.success("Profile updated");
+  };
 
-  // useEffect(()=>{
-  //     return ()=>{
-  //         dispatch(resetAddressAddStatus())
-  //         dispatch(resetAddressUpdateStatus())
-  //         dispatch(resetAddressDeleteStatus())
-  //     }
-  // },[])
-
-  // const handleAddAddress=(data)=>{
-  //     const address={...data,user:userInfo._id}
-  //     dispatch(addAddressAsync(address))
-  //     setAddAddress(false)
-  //     reset()
-  // }
+  if (loading && !user?.phone) {
+    return (
+      <Typography color="text.secondary" sx={{ p: 2 }}>
+        Loading profile…
+      </Typography>
+    );
+  }
 
   return (
-    <Stack
-      height={"calc(100vh - 4rem)"}
-      justifyContent={"flex-start"}
-      alignItems={"center"}
-    >
-      <Stack
-        component={is480 ? "" : Paper}
-        elevation={1}
-        width={is900 ? "100%" : "50rem"}
-        p={2}
-        mt={is480 ? 0 : 5}
-        rowGap={2}
-      >
-        {/* user details - [name ,email ] */}
-        <Stack
-          bgcolor={theme.palette.primary.light}
-          color={theme.palette.primary.main}
-          p={2}
-          rowGap={1}
-          borderRadius={".6rem"}
-          justifyContent={"center"}
-          alignItems={"center"}
-        >
-          <Avatar
-            src="none"
-            alt={loggedInUser?.name}
-            sx={{ width: 70, height: 70 }}
-          ></Avatar>
-          <Typography>{loggedInUser?.name}</Typography>
-          <Typography>{loggedInUser?.email}</Typography>
-        </Stack>
+    <Box sx={{ maxWidth: 1100, mx: "auto" }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 3, height: "100%" }}>
+            <Stack alignItems="center" spacing={2}>
+              <ProfileAvatar user={user} />
+              <Stack alignItems="center" spacing={0.5} sx={{ width: "100%" }}>
+                <Typography variant="h6" fontWeight={600} textAlign="center">
+                  {user?.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {user?.email}
+                </Typography>
+                {badgeLabel && (
+                  <Chip label={badgeLabel} size="small" sx={{ mt: 0.5 }} />
+                )}
+                {(user?.agencyName || user?.agencyId?.name) && (
+                  <Typography variant="caption" color="text.secondary">
+                    {user.agencyName || user.agencyId?.name}
+                  </Typography>
+                )}
+              </Stack>
+              {canEditProfile && (
+                <Button
+                  variant="outlined"
+                  startIcon={<EditOutlinedIcon />}
+                  onClick={() => setEditOpen(true)}
+                  sx={{ textTransform: "none" }}
+                >
+                  Edit profile
+                </Button>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
 
-        {/* address section */}
-        <Stack justifyContent={"center"} alignItems={"center"} rowGap={3}>
-          {/* heading and add button */}
-          <Stack
-            flexDirection={"row"}
-            alignItems={"center"}
-            justifyContent={"center"}
-            columnGap={1}
-          >
-            <Typography variant="h6" fontWeight={400}>
-              Manage addresses
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+              Personal details
             </Typography>
-            <Button
-              onClick={() => setAddAddress(true)}
-              size={is480 ? "small" : ""}
-              variant="contained"
-            >
-              Add
-            </Button>
-          </Stack>
+            <Divider sx={{ mb: 1 }} />
+            <Grid container spacing={1}>
+              <Grid item xs={12} sm={6}>
+                <DetailRow label="Phone" value={user?.phone} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <DetailRow label="Alternate phone" value={user?.alternatePhone} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <DetailRow label="Date of birth" value={formatDate(user?.dateOfBirth)} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <DetailRow label="Gender" value={user?.gender} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <DetailRow label="Blood group" value={user?.bloodGroup} />
+              </Grid>
+              <Grid item xs={12}>
+                <DetailRow label="Address" value={user?.address} />
+              </Grid>
+            </Grid>
 
-          {/* add address form - state dependent*/}
-          {/* {
-                            addAddress?(
-                                <Stack width={'100%'} component={'form'} noValidate onSubmit={handleSubmit(handleAddAddress)} rowGap={2}>
-                    
-                                        <Stack>
-                                            <Typography  gutterBottom>Type</Typography>
-                                            <TextField placeholder='Eg. Home, Buisness' {...register("type",{required:true})}/>
-                                        </Stack>
-                    
-                    
-                                        <Stack>
-                                            <Typography gutterBottom>Street</Typography>
-                                            <TextField {...register("street",{required:true})}/>
-                                        </Stack>
-                    
-                                        <Stack>
-                                            <Typography gutterBottom>Postal Code</Typography>
-                                            <TextField type='number' {...register("postalCode",{required:true})}/>
-                                        </Stack>
-                    
-                                        <Stack>
-                                            <Typography gutterBottom>Country</Typography>
-                                            <TextField {...register("country",{required:true})}/>
-                                        </Stack>
-                    
-                                        <Stack>
-                                            <Typography  gutterBottom>Phone Number</Typography>
-                                            <TextField type='number' {...register("phoneNumber",{required:true})}/>
-                                        </Stack>
-                    
-                                        <Stack>
-                                            <Typography gutterBottom>State</Typography>
-                                            <TextField {...register("state",{required:true})}/>
-                                        </Stack>
-                    
-                                        <Stack>
-                                            <Typography gutterBottom>City</Typography>
-                                            <TextField {...register("city",{required:true})}/>
-                                        </Stack>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 3 }} gutterBottom>
+              Identity
+            </Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Grid container spacing={1}>
+              <Grid item xs={12} sm={6}>
+                <DetailRow label="Aadhar number" value={user?.aadharNumber} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <DetailRow label="PAN number" value={user?.panNumber} />
+              </Grid>
+            </Grid>
 
-                                        <Stack flexDirection={'row'} alignSelf={'flex-end'} columnGap={is480?1:2}>
-                                            <LoadingButton loading={status==='pending'} type='submit' size={is480?"small":""} variant='contained'>add</LoadingButton>
-                                            <Button color='error' onClick={()=>setAddAddress(false)} variant={is480?"outlined":"text"} size={is480?"small":""} >cancel</Button>
-                                        </Stack>
-                                </Stack>
-                            ):('')
-                        } */}
+            {(user?.socialMedia?.linkedin ||
+              user?.socialMedia?.instagram ||
+              user?.socialMedia?.facebook) && (
+              <>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 3 }} gutterBottom>
+                  Social
+                </Typography>
+                <Divider sx={{ mb: 1 }} />
+                <DetailRow label="LinkedIn" value={user?.socialMedia?.linkedin} />
+                <DetailRow label="Instagram" value={user?.socialMedia?.instagram} />
+                <DetailRow label="Facebook" value={user?.socialMedia?.facebook} />
+              </>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
 
-          {/* mapping on addresses here  */}
-          {/* <Stack width={'100%'} rowGap={2}>
-                            {
-                                addresses.length>0?(
-                                    addresses.map((address)=>(
-                                        <Address key={address._id} id={address._id} city={address.city} country={address.country} phoneNumber={address.phoneNumber} postalCode={address.postalCode} state={address.state} street={address.street} type={address.type}/>
-                                    ))
-                                ):(
-                                    <Typography textAlign={'center'} mt={2} variant='body2'>You have no added addresses</Typography>
-                                )
-                            }      
-                        </Stack> */}
-        </Stack>
-      </Stack>
-    </Stack>
+      <Dialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Edit profile</DialogTitle>
+        <DialogContent>
+          <ProfileForm
+            mode="edit"
+            userId={user?._id}
+            email={user?.email}
+            initialValues={user}
+            submitLabel="Save changes"
+            onSubmitSuccess={handleProfileUpdate}
+          />
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 };

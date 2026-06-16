@@ -6,6 +6,7 @@ const otpSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: "User",
     required: true,
+    index: true,
   },
   otp: {
     type: String,

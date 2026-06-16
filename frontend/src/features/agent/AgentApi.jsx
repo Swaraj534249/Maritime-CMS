@@ -1,4 +1,5 @@
 import { axiosi } from "../../config/axios";
+import { rethrowApiError } from "../../config/apiHelpers";
 import { normalizeListResponse } from "../../config/normalizeListResponse";
 
 export const createAgent = async (data) => {
@@ -6,7 +7,7 @@ export const createAgent = async (data) => {
     const res = await axiosi.post("/agents", data);
     return res.data;
   } catch (error) {
-    throw error.response?.data || error;
+    rethrowApiError(error);
   }
 };
 
@@ -15,7 +16,7 @@ export const getAgentById = async (id) => {
     const res = await axiosi.get(`/agents/${id}`);
     return res.data;
   } catch (error) {
-    throw error.response?.data || error;
+    rethrowApiError(error);
   }
 };
 
@@ -24,10 +25,16 @@ export const fetchAgents = async (params = {}, signal) => {
     const res = await axiosi.get("/agents", { params, signal });
     return normalizeListResponse(res);
   } catch (error) {
-    if (error.name === "CanceledError" || error.code === "ERR_CANCELED") {
-      throw error;
-    }
-    throw error.response?.data ?? error;
+    rethrowApiError(error);
+  }
+};
+
+export const fetchAgentTypes = async () => {
+  try {
+    const res = await axiosi.get("/agents/types");
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
   }
 };
 
@@ -36,7 +43,7 @@ export const updateAgentById = async ({ id, data }) => {
     const res = await axiosi.patch(`/agents/${id}`, data);
     return res.data;
   } catch (error) {
-    throw error.response?.data || error;
+    rethrowApiError(error);
   }
 };
 
@@ -45,7 +52,7 @@ export const toggleAgentStatus = async (agentId) => {
     const res = await axiosi.patch(`/agents/${agentId}/toggle-status`);
     return res.data;
   } catch (error) {
-    throw error.response?.data || error;
+    rethrowApiError(error);
   }
 };
 
@@ -56,6 +63,6 @@ export const resetAgentPassword = async ({ id, newPassword }) => {
     });
     return res.data;
   } catch (error) {
-    throw error.response?.data || error;
+    rethrowApiError(error);
   }
 };
