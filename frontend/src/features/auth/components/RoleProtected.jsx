@@ -1,45 +1,27 @@
 import { useSelector } from "react-redux";
 import { selectLoggedInUser } from "../AuthSlice";
-import { Navigate } from "react-router";
+import { Navigate } from "react-router-dom";
 import { Box, Typography, Stack, Button } from "@mui/material";
 import { Link } from "react-router-dom";
 
-/**
- * Basic authentication protection
- * Checks if user is logged in and verified
- */
-export const Protected = ({ children }) => {
-  const loggedInUser = useSelector(selectLoggedInUser);
-
-  if (!loggedInUser) {
-    return <Navigate to="/login" replace={true} />;
-  }
-
-  if (!loggedInUser?.isVerified) {
-    return <Navigate to="/verify-otp" replace={true} />;
-  }
-
-  return children;
-};
-
-/**
- * Role-based protection
- * Checks if user has required role(s)
- * Usage: <RoleProtected allowedRoles={['AGENCY_ADMIN', 'SUPER_ADMIN']}><Component /></RoleProtected>
- */
 export const RoleProtected = ({ children, allowedRoles = [] }) => {
   const loggedInUser = useSelector(selectLoggedInUser);
 
-  // First check basic authentication
   if (!loggedInUser) {
-    return <Navigate to="/login" replace={true} />;
+    return <Navigate to="/login" replace />;
   }
 
-  if (!loggedInUser?.isVerified) {
-    return <Navigate to="/verify-otp" replace={true} />;
+  if (
+    loggedInUser.role === "AGENT" &&
+    loggedInUser.status === "verified"
+  ) {
+    return <Navigate to="/agent/onboarding" replace />;
   }
 
-  // Check if user's role is in allowed roles
+  if (loggedInUser.status !== "active") {
+    return <Navigate to="/login" replace />;
+  }
+
   if (!allowedRoles.includes(loggedInUser.role)) {
     return (
       <Stack
@@ -58,8 +40,8 @@ export const RoleProtected = ({ children, allowedRoles = [] }) => {
         <Typography color="text.secondary">
           You don't have permission to access this page
         </Typography>
-        <Button variant="contained" component={Link} to="/">
-          Go to Home
+        <Button variant="contained" component={Link} to="/dashboard">
+          Go to Dashboard
         </Button>
       </Stack>
     );
@@ -68,9 +50,6 @@ export const RoleProtected = ({ children, allowedRoles = [] }) => {
   return children;
 };
 
-/**
- * Agency admin specific protection
- */
 export const AgencyAdminProtected = ({ children }) => {
   return (
     <RoleProtected allowedRoles={["AGENCY_ADMIN", "SUPER_ADMIN"]}>
@@ -78,17 +57,15 @@ export const AgencyAdminProtected = ({ children }) => {
     </RoleProtected>
   );
 };
+
 export const AgentProtected = ({ children }) => {
   return (
-    <RoleProtected allowedRoles={["AGENT"]}>
+    <RoleProtected allowedRoles={["AGENT", "AGENCY_ADMIN", "SUPER_ADMIN"]}>
       {children}
     </RoleProtected>
   );
 };
 
-/**
- * Super admin only protection
- */
 export const SuperAdminProtected = ({ children }) => {
   return (
     <RoleProtected allowedRoles={["SUPER_ADMIN"]}>{children}</RoleProtected>

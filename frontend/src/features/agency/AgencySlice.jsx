@@ -1,4 +1,5 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { createApiThunk } from "../../config/thunkHelpers";
 import {
   createAgency,
   fetchAgencies,
@@ -51,59 +52,29 @@ const initialState = {
   error: null,
 };
 
-export const fetchAgenciesAsync = createAsyncThunk(
+export const fetchAgenciesAsync = createApiThunk(
   "agencies/fetch",
-  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
-    try {
-      return await fetchAgencies(params, signal);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  ({ params = {}, signal } = {}) => fetchAgencies(params, signal),
 );
 
-export const createAgencyAsync = createAsyncThunk(
+export const createAgencyAsync = createApiThunk(
   "agencies/create",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await createAgency(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => createAgency(payload),
 );
 
-export const updateAgencyByIdAsync = createAsyncThunk(
+export const updateAgencyByIdAsync = createApiThunk(
   "agencies/update",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateAgencyById(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => updateAgencyById(payload),
 );
 
-export const fetchAgencyByIdAsync = createAsyncThunk(
+export const fetchAgencyByIdAsync = createApiThunk(
   "agencies/getById",
-  async (id, { rejectWithValue }) => {
-    try {
-      return await getAgencyById(id);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (id) => getAgencyById(id),
 );
 
-export const toggleAgencyStatusAsync = createAsyncThunk(
+export const toggleAgencyStatusAsync = createApiThunk(
   "agencies/toggleStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await toggleAgencyStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => toggleAgencyStatus(payload),
 );
 
 const agencySlice = createSlice({

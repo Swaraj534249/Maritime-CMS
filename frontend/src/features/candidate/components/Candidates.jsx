@@ -5,16 +5,19 @@ import {
   fetchCandidatesAsync,
   toggleCandidateStatusAsync,
   selectTotalCount,
+  selectFetchStatus,
   selectUpdateStatus,
   selectCandidates,
-  selectCandidatesAggregates,
   selectPaginationModel,
   selectSortModel,
   selectSearchValue,
+  selectStatusFilter,
   resetStatuses,
   setPaginationModel,
   setSortModel,
   setSearchValue,
+  setStatusFilter,
+  CANDIDATE_STATUS_OPTIONS,
 } from "../../candidate/CandidateSlice";
 import {
   Stack,
@@ -25,7 +28,6 @@ import {
   Menu,
   MenuItem,
   Box,
-  Avatar,
   Chip,
   ListItemIcon,
   ListItemText,
@@ -35,16 +37,23 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ToggleOnIcon from "@mui/icons-material/ToggleOn";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
-import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ArticleIcon from "@mui/icons-material/Article";
 import BadgeIcon from "@mui/icons-material/Badge";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
+import FilesCountChip from "../../../components/Files/FilesCountChip";
+import InitialsAvatar from "../../../components/InitialsAvatar/InitialsAvatar";
+import { ListPageHeader } from "../../navigation/components/ListPageHeader";
+import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
+import StatusFilter from "../../../components/StatusFilter/StatusFilter";
+import { useStatusCounts } from "../../../hooks/useStatusCounts";
 import { toast } from "react-toastify";
 import { useRowActions } from "../../../hooks/useRowActions";
-import { getFileURL, getFileIcon, isPDF } from "../../../utils/fileUtils";
-import { useDocumentActions } from "../../../hooks/useDocumentActions";
+import {
+  buildCandidateDocumentSections,
+  countCandidateFiles,
+} from "../../../utils/documentSections";
 
 export const Candidates = () => {
   const dispatch = useDispatch();
@@ -52,30 +61,48 @@ export const Candidates = () => {
   
   const candidates = useSelector(selectCandidates);
   const totalCount = useSelector(selectTotalCount);
+  const fetchStatus = useSelector(selectFetchStatus);
   const updateStatus = useSelector(selectUpdateStatus);
-  const aggregates = useSelector(selectCandidatesAggregates);
   const paginationModel = useSelector(selectPaginationModel);
   const sortModel = useSelector(selectSortModel);
   const searchValue = useSelector(selectSearchValue);
+  const statusFilter = useSelector(selectStatusFilter);
+
+  const {
+    total: statusTotal,
+    byStatus: statusByCount,
+    refetch: refetchStatusCounts,
+  } = useStatusCounts("candidates", {
+    params: searchValue ? { searchValue } : {},
+  });
 
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
-  const [selectedDocuments, setSelectedDocuments] = useState({
-    photo: null,
-    passport: null,
-    cdc: null,
-    indos: null,
-    visa: null,
-    seamanBook: null,
-    aadhar: null,
-    pan: null,
-    medicalCertificate: null,
-    resume: null,
-  });
+  const [documentsForDialog, setDocumentsForDialog] = useState(null);
+
+  const candidateDocIconMap = useMemo(
+    () => ({
+      resume: <ArticleIcon color="primary" fontSize="small" />,
+      photo: <BadgeIcon color="primary" fontSize="small" />,
+      passport: <ArticleIcon color="primary" fontSize="small" />,
+      cdc: <ArticleIcon color="primary" fontSize="small" />,
+      indos: <ArticleIcon color="primary" fontSize="small" />,
+      visa: <ArticleIcon color="primary" fontSize="small" />,
+      seamanBook: <ArticleIcon color="primary" fontSize="small" />,
+      aadhar: <BadgeIcon color="primary" fontSize="small" />,
+      pan: <BadgeIcon color="primary" fontSize="small" />,
+      medicalCertificate: <ArticleIcon color="primary" fontSize="small" />,
+    }),
+    [],
+  );
+
+  const candidateFileSections = useMemo(
+    () =>
+      buildCandidateDocumentSections(documentsForDialog, candidateDocIconMap),
+    [documentsForDialog, candidateDocIconMap],
+  );
 
   const { anchorEl, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
-
-  const { openDocument } = useDocumentActions();
 
   const sortFieldMap = useMemo(
     () => ({
@@ -94,12 +121,14 @@ export const Candidates = () => {
     sortField,
     sortOrder,
     searchValue,
+    currentStatus,
     controller
   ) => {
     const params = { page: pageOneBased, limit };
     if (sortField) params.sortField = sortField;
     if (sortOrder) params.sortOrder = sortOrder;
     if (searchValue) params.searchValue = searchValue;
+    if (currentStatus) params.currentStatus = currentStatus;
     dispatch(fetchCandidatesAsync({ params, signal: controller }));
   };
 
@@ -111,23 +140,35 @@ export const Candidates = () => {
     const sortField = sort ? sortFieldMap[sort.field] || sort.field : undefined;
     const sortOrder = sort ? sort.sort : undefined;
 
-    fetchPage(page1, limit, sortField, sortOrder, searchValue, controller.signal);
+    fetchPage(
+      page1,
+      limit,
+      sortField,
+      sortOrder,
+      searchValue,
+      statusFilter,
+      controller.signal,
+    );
 
     return () => {
       controller.abort();
     };
-  }, [paginationModel, sortModel, searchValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginationModel, sortModel, searchValue, statusFilter]);
 
   useEffect(() => {
     if (updateStatus === "fulfilled") {
       toast.success("Candidate status updated successfully");
       dispatch(resetStatuses());
+      // A toggle can change the per-status counts.
+      refetchStatusCounts();
     }
 
     if (updateStatus === "rejected") {
       toast.error("Failed to update candidate status");
       dispatch(resetStatuses());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateStatus, dispatch]);
 
   const handleAddNew = () => {
@@ -163,19 +204,13 @@ export const Candidates = () => {
     dispatch(setPaginationModel({ ...paginationModel, page: 0 }));
   };
 
+  const handleStatusFilter = (value) => {
+    dispatch(setStatusFilter(value));
+    dispatch(setPaginationModel({ ...paginationModel, page: 0 }));
+  };
+
   const handleOpenDocuments = (candidate) => {
-    setSelectedDocuments({
-      photo: candidate?.documents?.photo || null,
-      passport: candidate?.documents?.passport || null,
-      cdc: candidate?.documents?.cdc || null,
-      indos: candidate?.documents?.indos || null,
-      visa: candidate?.documents?.visa || null,
-      seamanBook: candidate?.documents?.seamanBook || null,
-      aadhar: candidate?.documents?.aadhar || null,
-      pan: candidate?.documents?.pan || null,
-      medicalCertificate: candidate?.documents?.medicalCertificate || null,
-      resume: candidate?.documents?.resume || null,
-    });
+    setDocumentsForDialog(candidate?.documents || null);
     setOpenDocumentsDialog(true);
   };
 
@@ -189,22 +224,11 @@ export const Candidates = () => {
   const renderNameCell = (params) => {
     const { firstName, lastName, middleName } = params.row;
     const fullName = `${firstName} ${middleName || ""} ${lastName}`.trim();
-    const rawData = params.row._raw;
-    const photoURL = rawData?.documents?.photo?.path
-      ? getFileURL(rawData.documents.photo.path)
-      : null;
-    const initial = firstName?.charAt(0).toUpperCase() || "C";
 
     return (
       <Tooltip title={fullName} arrow>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {photoURL ? (
-            <Avatar src={photoURL} alt={fullName} sx={{ width: 32, height: 32 }} />
-          ) : (
-            <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
-              {initial}
-            </Avatar>
-          )}
+          <InitialsAvatar label={fullName} sx={{ width: 32, height: 32 }} />
           <Box>
             <Typography variant="body2" fontWeight={500}>
               {fullName}
@@ -233,6 +257,7 @@ export const Candidates = () => {
     const status = params.row.currentStatus;
     const statusColors = {
       Available: "success",
+      "In Process": "secondary",
       Onboard: "info",
       "On Leave": "warning",
       "In Pool": "default",
@@ -264,27 +289,13 @@ export const Candidates = () => {
 
   const renderDocumentsCell = (params) => {
     const rawData = params.row._raw;
-    const docs = rawData?.documents || {};
-    
-    const docCount = Object.keys(docs).filter(
-      (key) => docs[key]?.main?.filename || docs[key]?.old?.filename || docs[key]?.path
-    ).length;
+    const fileCount = countCandidateFiles(rawData?.documents);
 
     return (
-      <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-        {docCount > 0 ? (
-          <Chip
-            icon={<InsertDriveFileIcon />}
-            label={`${docCount} Doc${docCount > 1 ? "s" : ""}`}
-            size="small"
-            color="primary"
-            onClick={() => handleOpenDocuments(rawData)}
-            sx={{ cursor: "pointer" }}
-          />
-        ) : (
-          <span style={{ color: "#999", fontSize: 12 }}>No files</span>
-        )}
-      </Box>
+      <FilesCountChip
+        count={fileCount}
+        onClick={() => handleOpenDocuments(rawData)}
+      />
     );
   };
 
@@ -342,7 +353,7 @@ export const Candidates = () => {
     },
     {
       field: "documents",
-      headerName: "Documents",
+      headerName: "Files",
       flex: 1,
       minWidth: 120,
       sortable: false,
@@ -360,6 +371,25 @@ export const Candidates = () => {
       renderCell: renderStatusCell,
     },
     {
+      field: "addedBy",
+      headerName: "Added By",
+      flex: 1.4,
+      minWidth: 180,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const c = params.row._raw;
+        return (
+          <AddedByCell
+            addedBy={c.addedBy}
+            createdAt={c.createdAt}
+            updatedBy={c.updatedBy}
+            updatedAt={c.lastEditedAt}
+          />
+        );
+      },
+    },
+    {
       field: "actions",
       headerName: "Actions",
       flex: 0.8,
@@ -375,60 +405,48 @@ export const Candidates = () => {
   return (
     <Stack justifyContent="center" alignItems="center">
       <Stack mt={0} mb={0} sx={{ width: "100%" }}>
-        <Stack
-          mb={1}
-          direction="row"
-          width="100%"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ px: 1 }}
-        >
-          <Typography variant="h6">Candidates</Typography>
-
-          <Stack direction="row" spacing={1} alignItems="center">
-            {aggregates && (
-              <>
-                <Chip
-                  label={`Total: ${aggregates.counts.total || 0}`}
-                  size="small"
-                  variant="outlined"
-                />
-                <Chip
-                  label={`Available: ${aggregates.counts.available || 0}`}
-                  size="small"
-                  color="success"
-                />
-                <Chip
-                  label={`Onboard: ${aggregates.counts.onboard || 0}`}
-                  size="small"
-                  color="info"
-                />
-              </>
-            )}
-            
-            <Search
-              value={searchValue}
-              onDebouncedChange={(v) => handleSearch(v)}
-              delay={800}
-              placeholder="Search candidates..."
-              sx={{ width: { xs: 140, sm: 220, md: 320 } }}
-            />
-            
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddNew}
-              sx={{ textTransform: "none" }}
-            >
-              Add Candidate
-            </Button>
-          </Stack>
-        </Stack>
+        <ListPageHeader
+          actions={
+            <>
+              <StatusFilter
+                value={statusFilter}
+                onChange={handleStatusFilter}
+                options={CANDIDATE_STATUS_OPTIONS}
+                counts={statusByCount}
+                allCount={statusTotal}
+              />
+              <Search
+                value={searchValue}
+                onDebouncedChange={(v) => handleSearch(v)}
+                delay={800}
+                placeholder="Search candidates..."
+                sx={{ width: { xs: 140, sm: 220, md: 320 } }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddNew}
+                sx={{ textTransform: "none" }}
+              >
+                Add Candidate
+              </Button>
+            </>
+          }
+        />
 
         <DataTable
           rows={rows}
           columns={columns}
-          sx={{ maxWidth: "100%" }}
+          loading={fetchStatus === "pending"}
+          sx={{
+            maxWidth: "100%",
+            "& .MuiDataGrid-cell": {
+              display: "flex",
+              alignItems: "center",
+              py: 0.5,
+            },
+          }}
+          getRowHeight={() => "auto"}
           showToolbar={false}
           paginationModel={paginationModel}
           onPaginationModelChange={handlePaginationModelChange}
@@ -471,100 +489,12 @@ export const Candidates = () => {
 
         <DocumentsDialog
           open={openDocumentsDialog}
-          onClose={() => setOpenDocumentsDialog(false)}
-          title="Candidate Documents"
-          sections={[
-            {
-              key: "photo",
-              title: "Photograph",
-              icon: <BadgeIcon color="primary" />,
-              documents: selectedDocuments.photo,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "passport",
-              title: "Passport",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.passport,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "cdc",
-              title: "CDC",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.cdc,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "indos",
-              title: "INDOS",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.indos,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "visa",
-              title: "Visa",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.visa,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "seamanBook",
-              title: "Seaman Book",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.seamanBook,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "aadhar",
-              title: "Aadhar Card",
-              icon: <BadgeIcon color="primary" />,
-              documents: selectedDocuments.aadhar,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "pan",
-              title: "PAN Card",
-              icon: <BadgeIcon color="primary" />,
-              documents: selectedDocuments.pan,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "medicalCertificate",
-              title: "Medical Certificate",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.medicalCertificate,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-            {
-              key: "resume",
-              title: "Resume/CV",
-              icon: <ArticleIcon color="primary" />,
-              documents: selectedDocuments.resume,
-              openDocument,
-              getFileIcon,
-              isPDF,
-            },
-          ]}
+          onClose={() => {
+            setOpenDocumentsDialog(false);
+            setDocumentsForDialog(null);
+          }}
+          title="Candidate Files"
+          sections={candidateFileSections}
         />
       </Stack>
     </Stack>

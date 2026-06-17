@@ -47,6 +47,8 @@ import Search from "../../../components/Search/Search";
 import AgencyForm from "./AgencyForm";
 import { useRowActions } from "../../../hooks/useRowActions";
 import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
+import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 
 export const AgencyManagement = () => {
   const dispatch = useDispatch();
@@ -64,6 +66,7 @@ export const AgencyManagement = () => {
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const formSubmitting = useFormSubmitting("agency-form");
 
   const { anchorEl, open, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
@@ -369,34 +372,27 @@ export const AgencyManagement = () => {
   return (
     <Stack justifyContent={"center"} alignItems={"center"}>
       <Stack mt={0} mb={0} sx={{ width: "100%" }}>
-        {/* Header */}
-        <Stack
-          mb={1}
-          direction="row"
-          width="100%"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ px: 1 }}
-        >
-          <Typography variant="h6">Agency Management</Typography>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Search
-              value={searchValue}
-              onDebouncedChange={(val) => handleSearch(val)}
-              delay={800}
-              placeholder="Search agencies..."
-              sx={{ width: { xs: "140px", sm: "220px", md: "320px" } }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddNew}
-              sx={{ textTransform: "none" }}
-            >
-              Add Agency
-            </Button>
-          </Stack>
-        </Stack>
+        <ListPageHeader
+          actions={
+            <>
+              <Search
+                value={searchValue}
+                onDebouncedChange={(val) => handleSearch(val)}
+                delay={800}
+                placeholder="Search agencies..."
+                sx={{ width: { xs: "140px", sm: "220px", md: "320px" } }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddNew}
+                sx={{ textTransform: "none" }}
+              >
+                Add Agency
+              </Button>
+            </>
+          }
+        />
 
         {/* Data Table */}
         <DataTable
@@ -471,15 +467,15 @@ export const AgencyManagement = () => {
               py: 2,
             }}
           >
-            <Button variant="outlined" onClick={handleCloseModal}>
+            <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
               Cancel
             </Button>
             <LoadingButton
               type="submit"
               form="agency-form"
               variant="contained"
-              loading={createStatus === "pending"}
-              disabled={createStatus === "pending"}
+              loading={formSubmitting}
+              disabled={formSubmitting}
             >
               {editData ? "Update" : "Create"}
             </LoadingButton>

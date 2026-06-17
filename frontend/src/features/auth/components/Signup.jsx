@@ -50,7 +50,7 @@ export const Signup = () => {
 
   // handles user redirection
   useEffect(() => {
-    if (loggedInUser && !loggedInUser?.isVerified) {
+    if (loggedInUser && loggedInUser?.status !== "active") {
       navigate("/verify-otp");
     } else if (loggedInUser) {
       navigate("/");

@@ -10,7 +10,6 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import BusinessIcon from "@mui/icons-material/Business";
-import PeopleIcon from "@mui/icons-material/People";
 import GroupsIcon from "@mui/icons-material/Groups";
 import ArticleIcon from "@mui/icons-material/Article";
 import WorkIcon from "@mui/icons-material/Work";
@@ -27,7 +26,6 @@ const manager_pages = [
   { name: "Vessel Managers", to: "/vessel-managers", icon: <BusinessIcon /> },
   { name: "Vessel Owners", to: "/vessel-owners", icon: <BusinessIcon /> },
   { name: "Crew", to: "/crews", icon: <GroupsIcon /> },
-  { name: "Crew Agents", to: "/crewingAgents", icon: <PeopleIcon /> },
   { name: "Ranks", to: "/rank", icon: <WorkIcon /> },
 ];
 

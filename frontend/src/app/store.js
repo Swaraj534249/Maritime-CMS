@@ -4,13 +4,15 @@ import AgentSlice from "../features/agent/AgentSlice";
 import AgencySlice from "../features/agency/AgencySlice";
 import UserSlice from "../features/user/UserSlice";
 import VesselOwnerSlice from "../features/vesselOwner/VesselOwnerSlice";
-// import VesselManagerSlice from '../features/vesselManager/VesselManagerSlice'
 import VesselSlice from "../features/vessel/VesselSlice";
-// import RankSlice from '../features/rank/RankSlice'
-// import CrewSlice from '../features/crew/CrewSlice'
-import CrewingAgentSlice from "../features/crewingAgent/CrewingAgentSlice";
 import CandidateSlice from "../features/candidate/CandidateSlice";
-// import ProposeSlice from '../features/propose/ProposeSlice'
+import FeedbackSlice from "../features/feedback/FeedbackSlice";
+import RankSlice from "../features/assets/rank/RankSlice";
+import VesselTypeSlice from "../features/assets/vesselType/VesselTypeSlice";
+import VacancySlice from "../features/vacancy/VacancySlice";
+import ProposalSlice from "../features/proposal/ProposalSlice";
+import DocumentationSlice from "../features/documentation/DocumentationSlice";
+import SailingSlice from "../features/sailing/SailingSlice";
 
 export const store = configureStore({
   reducer: {
@@ -19,11 +21,14 @@ export const store = configureStore({
     AgencySlice,
     UserSlice,
     VesselOwnerSlice,
-    // VesselManagerSlice,
     VesselSlice,
-    // RankSlice,
-    // CrewSlice,
-    CrewingAgentSlice,
     CandidateSlice,
+    FeedbackSlice,
+    RankSlice,
+    VesselTypeSlice,
+    VacancySlice,
+    ProposalSlice,
+    DocumentationSlice,
+    SailingSlice,
   },
 });

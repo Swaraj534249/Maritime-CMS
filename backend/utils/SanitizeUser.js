@@ -1,9 +1,11 @@
+const { normalizeStatus } = require("./userStatus");
+const { applyAgencyFields } = require("./agencyTokenFields");
+
 /**
  * Sanitize user object for client response
  * Removes sensitive fields like password
  */
-exports.sanitizeUser = (user) => {
-  // Handle both mongoose documents and plain objects
+exports.sanitizeUser = (user, agency) => {
   const userData = user.toObject ? user.toObject() : user;
 
   const sanitized = {
@@ -13,8 +15,7 @@ exports.sanitizeUser = (user) => {
     role: userData.role,
     userType: userData.userType,
     industryType: userData.industryType,
-    isVerified: userData.isVerified,
-    isActive: userData.isActive,
+    status: normalizeStatus(userData),
   };
 
   if (userData.agencyId) {
@@ -25,9 +26,25 @@ exports.sanitizeUser = (user) => {
     sanitized.agency = userData.agency;
   }
 
-  if (userData.avatar) {
-    sanitized.avatar = userData.avatar;
+  if (userData.agencyId && typeof userData.agencyId === "object") {
+    applyAgencyFields(sanitized, userData.agencyId);
+    sanitized.agencyId = userData.agencyId._id;
+  } else {
+    applyAgencyFields(sanitized, agency || userData);
   }
+
+  if (userData.avatar) sanitized.avatar = userData.avatar;
+  if (userData.phone) sanitized.phone = userData.phone;
+  if (userData.alternatePhone) sanitized.alternatePhone = userData.alternatePhone;
+  if (userData.dateOfBirth) sanitized.dateOfBirth = userData.dateOfBirth;
+  if (userData.gender) sanitized.gender = userData.gender;
+  if (userData.address) sanitized.address = userData.address;
+  if (userData.bloodGroup) sanitized.bloodGroup = userData.bloodGroup;
+  if (userData.aadharNumber) sanitized.aadharNumber = userData.aadharNumber;
+  if (userData.panNumber) sanitized.panNumber = userData.panNumber;
+  if (userData.aadhar) sanitized.aadhar = userData.aadhar;
+  if (userData.pan) sanitized.pan = userData.pan;
+  if (userData.socialMedia) sanitized.socialMedia = userData.socialMedia;
 
   if (userData.lastLoginAt) {
     sanitized.lastLoginAt = userData.lastLoginAt;
@@ -46,11 +63,8 @@ exports.sanitizeUser = (user) => {
 
 /**
  * Sanitize user object for JWT token
- * Only includes essential fields needed for authentication and authorization
- * CRITICAL: Must include role, agencyId, and industryType for proper multi-tenancy
  */
-exports.sanitizeUserForToken = (user) => {
-  // Handle both mongoose documents and plain objects
+exports.sanitizeUserForToken = (user, agency) => {
   const userData = user.toObject ? user.toObject() : user;
 
   const tokenPayload = {
@@ -59,15 +73,22 @@ exports.sanitizeUserForToken = (user) => {
     role: userData.role,
   };
 
-  // CRITICAL: Include agencyId for agency-based authorization
-  // Super admins won't have agencyId, so it's optional
-  if (userData.agencyId) {
-    tokenPayload.agencyId = userData.agencyId;
+  const agencyId =
+    userData.agencyId?._id || userData.agencyId || agency?._id;
+  if (agencyId) {
+    tokenPayload.agencyId = agencyId;
   }
 
   if (userData.industryType) {
     tokenPayload.industryType = userData.industryType;
   }
+
+  const agencyDoc =
+    agency ||
+    (userData.agencyId && typeof userData.agencyId === "object"
+      ? userData.agencyId
+      : null);
+  applyAgencyFields(tokenPayload, agencyDoc);
 
   return tokenPayload;
 };

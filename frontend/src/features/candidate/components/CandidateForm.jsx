@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import DynamicFormBuilder from "../../../components/FormBuilder/DynamicFormBuilder";
 import * as yup from "yup";
@@ -6,6 +6,10 @@ import { toast } from "react-toastify";
 import { Box, CircularProgress, Typography, Alert } from "@mui/material";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 import { parseResume } from "../CandidateApi";
+import { fetchRanks } from "../../assets/rank/RankApi";
+import { submitEntityWithFiles, EntitySubmitError } from "../../../utils/entitySubmitWithFiles";
+import { getErrorMessage } from "../../../utils/getErrorMessage";
+import { getFileSizeError } from "../../../utils/fileUtils";
 import {
   createCandidateAsync,
   updateCandidateByIdAsync,
@@ -13,7 +17,6 @@ import {
 
 // Validation Schema
 const candidateSchema = yup.object({
-  // Basic Information
   firstName: yup.string().required("First name is required"),
   middleName: yup.string(),
   lastName: yup.string().required("Last name is required"),
@@ -24,12 +27,8 @@ const candidateSchema = yup.object({
   gender: yup.string().required("Gender is required"),
   nationality: yup.string().required("Nationality is required"),
   address: yup.string().required("Address is required"),
-
-  // Government IDs
   aadharNumber: yup.string(),
   panNumber: yup.string(),
-
-  // Maritime Identification
   indosNumber: yup.string().required("Indos number is required"),
   cdcNumber: yup.string(),
   cdcIssueDate: yup.date().nullable(),
@@ -39,25 +38,18 @@ const candidateSchema = yup.object({
   passportExpiryDate: yup.date().nullable(),
   passportPlaceOfIssue: yup.string(),
   seamanBookNumber: yup.string(),
-
-  // Professional Information
   rank: yup.string().required("Rank is required"),
   vesselType: yup.string(),
   currentStatus: yup.string().required("Current status is required"),
   availableFrom: yup.date().nullable(),
-
-  // Next of Kin
   nextOfKinName: yup.string(),
   nextOfKinRelationship: yup.string(),
   nextOfKinPhone: yup.string(),
   nextOfKinAddress: yup.string(),
-
   remarks: yup.string(),
 }).required();
 
-// Field Configuration
 const candidateFields = [
-  // Resume/CV Upload - First Position
   {
     name: "resume",
     label: "Resume/CV",
@@ -65,7 +57,7 @@ const candidateFields = [
     accept: ".pdf,.doc,.docx",
     gridSize: { xs: 12 },
     helperText:
-      "Upload resume to auto-fill form fields below (PDF, DOC, DOCX)",
+      "Upload resume to auto-fill form fields below (PDF, DOC, DOCX). Max 10MB.",
   },
   {
     name: "firstName",
@@ -152,17 +144,17 @@ const candidateFields = [
     name: "passportIssueDate",
     label: "Passport Issue Date",
     type: "date",
-    gridSize: { xs: 12, sm: 3 },
+    gridSize: { xs: 12, sm: 6 },
   },
   {
     name: "passportExpiryDate",
     label: "Passport Expiry Date",
     type: "date",
-    gridSize: { xs: 12, sm: 3 },
+    gridSize: { xs: 12, sm: 6 },
   },
   {
     name: "passportPlaceOfIssue",
-    label: "Place of Issue",
+    label: "Passport Place of Issue",
     type: "text",
     gridSize: { xs: 12, sm: 6 },
   },
@@ -176,13 +168,13 @@ const candidateFields = [
     name: "cdcIssueDate",
     label: "CDC Issue Date",
     type: "date",
-    gridSize: { xs: 12, sm: 3 },
+    gridSize: { xs: 12, sm: 6 },
   },
   {
     name: "cdcExpiryDate",
     label: "CDC Expiry Date",
     type: "date",
-    gridSize: { xs: 12, sm: 3 },
+    gridSize: { xs: 12, sm: 6 },
   },
   {
     name: "indosNumber",
@@ -200,51 +192,26 @@ const candidateFields = [
     name: "rank",
     label: "Rank/Position",
     type: "select",
-    options: [
-      "Master",
-      "Chief Officer",
-      "Second Officer",
-      "Third Officer",
-      "Chief Engineer",
-      "Second Engineer",
-      "Third Engineer",
-      "Fourth Engineer",
-      "Bosun",
-      "AB (Able Seaman)",
-      "OS (Ordinary Seaman)",
-      "Oiler",
-      "Fitter",
-      "Wiper",
-      "Cook",
-      "Steward",
-      "Rating",
-    ],
+    options: [],
     gridSize: { xs: 12, sm: 6 },
   },
   {
     name: "vesselType",
     label: "Vessel Type",
-    type: "select",
-    options: [
-      "Bulk Carrier",
-      "Container",
-      "Tanker",
-      "Chemical Tanker",
-      "LNG Carrier",
-      "LPG Carrier",
-      "Offshore",
-      "Cruise Ship",
-      "RORO",
-      "General Cargo",
-      "Other",
-    ],
+    type: "text",
     gridSize: { xs: 12, sm: 6 },
   },
   {
     name: "currentStatus",
     label: "Current Status",
     type: "select",
-    options: ["Available", "Onboard", "On Leave", "In Pool", "Not Available"],
+    options: [
+      "Available",
+      "On Board",
+      "On Leave",
+      "Not Available",
+      "Blacklisted",
+    ],
     gridSize: { xs: 12, sm: 6 },
   },
   {
@@ -254,77 +221,77 @@ const candidateFields = [
     gridSize: { xs: 12, sm: 6 },
   },
   {
-    name: "signOffDate",
-    label: "Last Sign Off Date",
-    type: "date",
-    gridSize: { xs: 12, sm: 6 },
-  },
-
-  {
     name: "photo",
     label: "Photograph",
     type: "file",
     accept: "image/png,image/jpeg,image/jpg",
     gridSize: { xs: 12, sm: 6 },
-    helperText: "Upload passport size photo (PNG, JPG)",
+    helperText: "PNG, JPG, JPEG only (Max 10MB)",
   },
   {
     name: "passport",
     label: "Passport Copy",
     type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
+    accept: ".pdf,.doc,.docx,image/png,image/jpeg",
     gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
   },
   {
     name: "cdc",
     label: "CDC Document",
     type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
+    accept: ".pdf,.doc,.docx",
     gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
   },
   {
     name: "indos",
     label: "INDOS Document",
     type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
+    accept: ".pdf,.doc,.docx,image/png,image/jpeg",
     gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
   },
   {
     name: "visa",
     label: "Visa Document",
     type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
+    accept: ".pdf,.doc,.docx,image/png,image/jpeg",
     gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
+  },
+  {
+    name: "aadhar",
+    label: "Aadhar Document",
+    type: "file",
+    accept: ".pdf,.doc,.docx,image/png,image/jpeg",
+    gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
+  },
+  {
+    name: "pan",
+    label: "PAN Document",
+    type: "file",
+    accept: ".pdf,.doc,.docx,image/png,image/jpeg",
+    gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
   },
   {
     name: "seamanBook",
     label: "Seaman Book",
     type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
+    accept: ".pdf,.doc,.docx,image/png,image/jpeg",
     gridSize: { xs: 12, sm: 6 },
-  },
-  {
-    name: "aadhar",
-    label: "Aadhar Card",
-    type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
-    gridSize: { xs: 12, sm: 6 },
-  },
-  {
-    name: "pan",
-    label: "PAN Card",
-    type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
-    gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
   },
   {
     name: "medicalCertificate",
     label: "Medical Certificate",
     type: "file",
-    accept: ".pdf,.jpg,.jpeg,.png",
+    accept: ".pdf,.doc,.docx,image/png,image/jpeg",
     gridSize: { xs: 12, sm: 6 },
+    helperText: "Max 10MB per file",
   },
-
   {
     name: "nextOfKinName",
     label: "Next of Kin Name",
@@ -339,13 +306,13 @@ const candidateFields = [
   },
   {
     name: "nextOfKinPhone",
-    label: "Phone",
+    label: "Next of Kin Phone",
     type: "text",
     gridSize: { xs: 12, sm: 6 },
   },
   {
     name: "nextOfKinAddress",
-    label: "Address",
+    label: "Next of Kin Address",
     type: "textarea",
     gridSize: { xs: 12 },
     multiline: true,
@@ -367,14 +334,37 @@ const CandidateForm = ({
   onSubmit,
   onCancel,
   isEditMode = false,
-  isSubmitting = false,
 }) => {
   const dispatch = useDispatch();
   const [isParsing, setIsParsing] = useState(false);
   const [parseMessage, setParseMessage] = useState(null);
+  const [rankOptions, setRankOptions] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await fetchRanks({ all: "true", activeOnly: "true" });
+        if (active) setRankOptions((data || []).map((r) => r.rankName));
+      } catch (err) {
+        // Non-blocking: dropdown will stay empty if ranks fail to load
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fields = useMemo(() => {
+    const opts = [...rankOptions];
+    const current = initialData?.rank;
+    if (current && !opts.includes(current)) opts.unshift(current);
+    return candidateFields.map((field) =>
+      field.name === "rank" ? { ...field, options: opts } : field,
+    );
+  }, [rankOptions, initialData?.rank]);
 
   const defaultValues = {
-    // Basic Information
     firstName: initialData?.firstName || "",
     middleName: initialData?.middleName || "",
     lastName: initialData?.lastName || "",
@@ -385,12 +375,8 @@ const CandidateForm = ({
     gender: initialData?.gender || "Male",
     nationality: initialData?.nationality || "Indian",
     address: initialData?.address || "",
-
-    // Government IDs
     aadharNumber: initialData?.aadharNumber || "",
     panNumber: initialData?.panNumber || "",
-
-    // Maritime Identification
     passportNumber: initialData?.passportNumber || "",
     passportIssueDate: initialData?.passportIssueDate || null,
     passportExpiryDate: initialData?.passportExpiryDate || null,
@@ -400,24 +386,17 @@ const CandidateForm = ({
     cdcExpiryDate: initialData?.cdcExpiryDate || null,
     indosNumber: initialData?.indosNumber || "",
     seamanBookNumber: initialData?.seamanBookNumber || "",
-
-    // Professional
     rank: initialData?.rank || "",
     vesselType: initialData?.vesselType || "",
     currentStatus: initialData?.currentStatus || "Available",
     availableFrom: initialData?.availableFrom || null,
-    signOffDate: initialData?.signOffDate || null,
-
-    // Next of Kin (flattened structure)
     nextOfKinName: initialData?.nextOfKinName || "",
     nextOfKinRelationship: initialData?.nextOfKinRelationship || "",
     nextOfKinPhone: initialData?.nextOfKinPhone || "",
     nextOfKinAddress: initialData?.nextOfKinAddress || "",
-
     remarks: initialData?.remarks || "",
   };
 
-  // Existing files (for edit mode preview)
   const existingFiles = {
     photo: initialData?.documents?.photo || null,
     passport: initialData?.documents?.passport || null,
@@ -432,8 +411,11 @@ const CandidateForm = ({
   };
 
   const handleResumeUpload = async (file, setFieldValue) => {
-    if (!file || isEditMode) {
-      // Don't auto-parse in edit mode
+    if (!file || isEditMode) return;
+
+    const sizeError = getFileSizeError(file);
+    if (sizeError) {
+      toast.error(sizeError);
       return;
     }
 
@@ -445,8 +427,6 @@ const CandidateForm = ({
 
       if (result.success && result.data) {
         const parsed = result.data;
-
-        // Auto-fill form fields with parsed data
         if (parsed.firstName) setFieldValue("firstName", parsed.firstName);
         if (parsed.middleName) setFieldValue("middleName", parsed.middleName);
         if (parsed.lastName) setFieldValue("lastName", parsed.lastName);
@@ -458,13 +438,9 @@ const CandidateForm = ({
         if (parsed.dateOfBirth) setFieldValue("dateOfBirth", parsed.dateOfBirth);
         if (parsed.gender) setFieldValue("gender", parsed.gender);
         if (parsed.nationality) setFieldValue("nationality", parsed.nationality);
-
-        // Government IDs
         if (parsed.aadharNumber)
           setFieldValue("aadharNumber", parsed.aadharNumber);
         if (parsed.panNumber) setFieldValue("panNumber", parsed.panNumber);
-
-        // Maritime IDs
         if (parsed.cdcNumber) setFieldValue("cdcNumber", parsed.cdcNumber);
         if (parsed.indosNumber) setFieldValue("indosNumber", parsed.indosNumber);
         if (parsed.passportNumber)
@@ -473,19 +449,17 @@ const CandidateForm = ({
           setFieldValue("passportPlaceOfIssue", parsed.passportPlaceOfIssue);
         if (parsed.seamanBookNumber)
           setFieldValue("seamanBookNumber", parsed.seamanBookNumber);
-
-        // Professional
         if (parsed.rank) setFieldValue("rank", parsed.rank);
 
         toast.success(
-          `Resume parsed successfully! ${parsed._confidence || 0}% fields auto-filled`
+          `Resume parsed successfully! ${parsed._confidence || 0}% fields auto-filled`,
         );
         setParseMessage({
           type: "success",
           text: "Form fields auto-filled from resume. Please review and complete any missing information.",
         });
       } else {
-        toast.warning("Resume uploaded but auto-fill failed. Please fill manually.");
+        toast.warning("Could not auto-fill from resume. Please fill manually.");
         setParseMessage({
           type: "warning",
           text: "Could not extract all data from resume. Please fill the form manually.",
@@ -503,48 +477,61 @@ const CandidateForm = ({
     }
   };
 
+  const buildCandidateFormData = (formData) => {
+    const data = new FormData();
+    data.append("uploadFolder", "candidates");
+    Object.keys(formData).forEach((key) => {
+      const val = formData[key];
+      if (val === undefined || val === null) return;
+      const singleVal = Array.isArray(val) ? val[0] : val;
+      data.append(key, singleVal);
+    });
+    return data;
+  };
+
   const handleFormSubmit = async (formData, uploadedFiles) => {
     try {
-      const data = new FormData();
-      data.append("uploadFolder", "candidates");
-
-      // Append text fields
-      Object.keys(formData).forEach((key) => {
-        const val = formData[key];
-        if (val === undefined || val === null) return;
-        const singleVal = Array.isArray(val) ? val[0] : val;
-        data.append(key, singleVal);
-      });
-
-      // Append file uploads
-      Object.keys(uploadedFiles).forEach((key) => {
-        if (uploadedFiles[key]) {
-          data.append(key, uploadedFiles[key]);
-        }
-      });
-
-      if (isEditMode) {
-        data.append("_id", initialData._id);
-        await dispatch(updateCandidateByIdAsync(data)).unwrap();
-        toast.success("Candidate updated successfully");
-      } else {
-        await dispatch(createCandidateAsync(data)).unwrap();
-        toast.success("Candidate created successfully");
+      if (!formData.indosNumber?.trim()) {
+        toast.error("INDOS number is required before saving files");
+        return;
       }
 
-      // Call the original onSubmit if provided
-      if (onSubmit) {
-        onSubmit(data);
-      }
+      await submitEntityWithFiles({
+        formData,
+        uploadedFiles,
+        uploadFolder: "candidates",
+        uploadFormFields: { indosNumber: formData.indosNumber },
+        isEditMode,
+        entityId: initialData?._id,
+        buildFormData: buildCandidateFormData,
+        create: (data) => dispatch(createCandidateAsync(data)).unwrap(),
+        update: (data) => dispatch(updateCandidateByIdAsync(data)).unwrap(),
+      });
+
+      toast.success(
+        isEditMode
+          ? "Candidate updated successfully"
+          : "Candidate created successfully",
+      );
+      if (onSubmit) onSubmit();
     } catch (error) {
       console.error("Form submission error:", error);
-      toast.error(error?.message || "Failed to save candidate");
+
+      if (error instanceof EntitySubmitError && error.partialUpload) {
+        toast.warning(
+          `${error.savedFileCount} file(s) saved. Failed: ${error.message}`,
+          { autoClose: 8000 },
+        );
+        if (onSubmit) onSubmit();
+        return;
+      }
+
+      toast.error(getErrorMessage(error, "Failed to save candidate"));
     }
   };
 
   return (
     <>
-      {/* Parsing Status */}
       {isParsing && (
         <Alert
           severity="info"
@@ -558,7 +545,6 @@ const CandidateForm = ({
         </Alert>
       )}
 
-      {/* Parse Result Message */}
       {parseMessage && !isParsing && (
         <Alert severity={parseMessage.type} sx={{ mb: 2 }}>
           {parseMessage.text}
@@ -567,7 +553,7 @@ const CandidateForm = ({
 
       <DynamicFormBuilder
         formId={formId}
-        fields={candidateFields}
+        fields={fields}
         validationSchema={candidateSchema}
         defaultValues={defaultValues}
         onSubmit={handleFormSubmit}
@@ -575,7 +561,6 @@ const CandidateForm = ({
         isEditMode={isEditMode}
         existingFiles={existingFiles}
         showSubmitButton={false}
-        // Pass the resume upload handler
         onResumeUpload={handleResumeUpload}
       />
 

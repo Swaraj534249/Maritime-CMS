@@ -1,3 +1,5 @@
+const Agency = require("../models/Agency");
+
 exports.authorize = (...allowedRoles) => {
   return (req, res, next) => {
     try {
@@ -125,11 +127,9 @@ exports.validateResourceOwnership = (Model, resourceIdParam = "id") => {
 exports.checkAgencyStatus = async (req, res, next) => {
   try {
     // Super admins don't need agency status check
-    if (req.user && req.user.role === "SUPER_ADMIN") {
+    if (req.user.role === "SUPER_ADMIN") {
       return next();
     }
-
-    const Agency = require("../models/Agency");
 
     if (!req.user || !req.user.agencyId) {
       return next();

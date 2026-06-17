@@ -1,0 +1,39 @@
+import { axiosi } from "../../../config/axios";
+import { rethrowApiError } from "../../../config/apiHelpers";
+import { normalizeListResponse } from "../../../config/normalizeListResponse";
+
+export const fetchRanks = async (params = {}, signal) => {
+  try {
+    const res = await axiosi.get("/ranks", { params, signal });
+    return normalizeListResponse(res);
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};
+
+export const createRank = async (payload) => {
+  try {
+    const res = await axiosi.post("/ranks", payload);
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};
+
+export const updateRank = async ({ id, ...payload }) => {
+  try {
+    const res = await axiosi.patch(`/ranks/${id}`, payload);
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};
+
+export const toggleRankStatus = async (id) => {
+  try {
+    const res = await axiosi.patch(`/ranks/${id}/toggle-status`);
+    return res.data;
+  } catch (error) {
+    rethrowApiError(error);
+  }
+};

@@ -6,6 +6,7 @@ import {
   DialogTitle,
   IconButton,
 } from "@mui/material";
+import { LoadingButton } from "@mui/lab";
 import CloseIcon from "@mui/icons-material/Close";
 
 const FormDialog = ({
@@ -16,6 +17,7 @@ const FormDialog = ({
   onSubmit,
   submitText = "Save",
   maxWidth = "md",
+  loading = false,
 }) => {
   return (
     <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth>
@@ -24,6 +26,7 @@ const FormDialog = ({
         <IconButton
           onClick={onClose}
           sx={{ position: "absolute", right: 8, top: 8 }}
+          disabled={loading}
         >
           <CloseIcon />
         </IconButton>
@@ -47,12 +50,12 @@ const FormDialog = ({
           py: 2,
         }}
       >
-        <Button variant="outlined" onClick={onClose}>
+        <Button variant="outlined" onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={onSubmit}>
+        <LoadingButton variant="contained" onClick={onSubmit} loading={loading}>
           {submitText}
-        </Button>
+        </LoadingButton>
       </DialogActions>
     </Dialog>
   );

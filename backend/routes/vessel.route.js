@@ -1,22 +1,19 @@
 const express = require("express");
 const controller = require("../controllers/vessel.controller");
-const {
-  uploadVesselFiles,
-  handleMulterError,
-} = require("../middleware/upload");
+const { parseFormFields } = require("../middleware/upload");
+const { mountStaffAccess } = require("../middleware/routeGuards");
+const { presignedPatchChain } = require("../middleware/presignedPatch");
+
 const router = express.Router();
 
+mountStaffAccess(router);
+
 router
-  .post("/", uploadVesselFiles, handleMulterError, controller.create)
+  .post("/", parseFormFields, controller.create)
   .get("/", controller.list)
   .get("/:id", controller.getById)
-  .patch(
-    "/:id",
-    uploadVesselFiles,
-    handleMulterError,
-    controller.updateById,
-  )
-  .patch('/:id/toggle-status', controller.toggleStatus)
+  .patch("/:id", ...presignedPatchChain, controller.updateById)
+  .patch("/:id/toggle-status", controller.toggleStatus)
   .post("/bulk-import", controller.bulkImport)
   .get("/export", controller.exportList);
 

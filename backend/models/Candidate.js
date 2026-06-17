@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
+const { INDUSTRY_TYPES } = require("./schemas/industryTypes");
 
 const candidateSchema = new Schema(
   {
@@ -16,9 +17,16 @@ const candidateSchema = new Schema(
       required: true,
       index: true,
     },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastEditedAt: {
+      type: Date,
+    },
     industryType: {
       type: String,
-      enum: ["maritime", "healthcare", "construction", "hospitality", "other"],
+      enum: INDUSTRY_TYPES,
       required: true,
       default: "maritime",
       index: true,
@@ -139,7 +147,14 @@ const candidateSchema = new Schema(
     // Current Status
     currentStatus: {
       type: String,
-      enum: ["Available", "Onboard", "On Leave", "In Pool", "Not Available"],
+      enum: [
+        "Available",
+        "In Process",
+        "Onboard",
+        "On Leave",
+        "In Pool",
+        "Not Available",
+      ],
       required: true,
       default: "Available",
       index: true,

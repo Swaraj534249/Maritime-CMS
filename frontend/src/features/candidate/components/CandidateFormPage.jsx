@@ -15,11 +15,10 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PersonIcon from "@mui/icons-material/Person";
 import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import { toast } from "react-toastify";
 import CandidateForm from "./CandidateForm";
 import {
-  createCandidateAsync,
-  updateCandidateByIdAsync,
   fetchCandidateByIdAsync,
   selectCreateStatus,
   selectUpdateStatus,
@@ -38,6 +37,7 @@ export const CandidateFormPage = () => {
   const [loading, setLoading] = useState(false);
 
   const isEditMode = Boolean(id);
+  const formSubmitting = useFormSubmitting("candidate-form");
 
   useEffect(() => {
     if (isEditMode) {
@@ -86,43 +86,11 @@ export const CandidateFormPage = () => {
     navigate("/candidates");
   };
 
-  const handleSubmit = async (formData, uploadedFiles) => {
-    try {
-      const data = new FormData();
-      data.append("uploadFolder", "candidates");
-
-      // Append form data
-      Object.entries(formData).forEach(([key, val]) => {
-        if (val === undefined || val === null || val === "") return;
-        
-        // Handle nested objects (like address, nextOfKin)
-        if (typeof val === "object" && !Array.isArray(val) && !(val instanceof Date)) {
-          data.append(key, JSON.stringify(val));
-        } else {
-          data.append(key, val);
-        }
-      });
-
-      // Append uploaded files
-      Object.entries(uploadedFiles).forEach(([fieldName, file]) => {
-        if (file) {
-          data.append(fieldName, file);
-        }
-      });
-
-      if (isEditMode) {
-        data.append("_id", candidateData._id);
-        await dispatch(updateCandidateByIdAsync(data)).unwrap();
-      } else {
-        await dispatch(createCandidateAsync(data)).unwrap();
-      }
-    } catch (error) {
-      console.error("Candidate submit error:", error);
-    }
+  const handleSubmit = () => {
+    /* submission handled inside CandidateForm */
   };
 
   const pageTitle = isEditMode ? "Edit Candidate" : "Add New Candidate";
-  const isSubmitting = createStatus === "pending" || updateStatus === "pending";
 
   if (isEditMode && loading) {
     return (
@@ -162,11 +130,10 @@ export const CandidateFormPage = () => {
 
         <CandidateForm
           formId="candidate-form"
-          initialData={candidateData}
+          initialData={candidateData ?? {}}
           onSubmit={handleSubmit}
           onCancel={handleBack}
           isEditMode={isEditMode}
-          isSubmitting={isSubmitting}
         />
 
         {/* Action Buttons */}
@@ -176,15 +143,15 @@ export const CandidateFormPage = () => {
           justifyContent="flex-end"
           sx={{ mt: 4, pt: 3, borderTop: "1px solid #e0e0e0" }}
         >
-          <Button variant="outlined" onClick={handleBack} disabled={isSubmitting}>
+          <Button variant="outlined" onClick={handleBack} disabled={formSubmitting}>
             Cancel
           </Button>
           <LoadingButton
             type="submit"
             form="candidate-form"
             variant="contained"
-            loading={isSubmitting}
-            disabled={isSubmitting}
+            loading={formSubmitting}
+            disabled={formSubmitting}
           >
             {isEditMode ? "Update Candidate" : "Create Candidate"}
           </LoadingButton>

@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
   Avatar,
   ListItemIcon,
   ListItemText,
@@ -30,11 +31,14 @@ import LockResetIcon from "@mui/icons-material/LockReset";
 import ToggleOnIcon from "@mui/icons-material/ToggleOn";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 import { LoadingButton } from "@mui/lab";
+import { useFormSubmitting } from "../../../hooks/useFormSubmitting";
 import { toast } from "react-toastify";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import AgentForm from "./AgentForm";
 import { useRowActions } from "../../../hooks/useRowActions";
+import { usePageTitle } from "../../navigation/PageTitleContext";
+import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 import {
   resetStatuses,
   selectTotalCount,
@@ -49,9 +53,11 @@ import {
   setSearchValue,
   fetchAgentsAsync,
   toggleAgentStatusAsync,
+  resetAgentPasswordAsync,
   selectCreateStatus,
   selectAgency,
 } from "../AgentSlice";
+import { formatDisplayLabel } from "../../../utils/formatLabel";
 
 export const AgentManagement = () => {
   const { agencyId } = useParams();
@@ -71,6 +77,10 @@ export const AgentManagement = () => {
   const [openModal, setOpenModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const formSubmitting = useFormSubmitting("agent-form");
 
   const { anchorEl, selectedRowId, handleMenuOpen, handleMenuClose } =
     useRowActions();
@@ -178,9 +188,32 @@ export const AgentManagement = () => {
   };
 
   const handleResetPassword = () => {
-    console.log("Reset password for:", selectedRowId);
+    setNewPassword("");
+    setConfirmPassword("");
+    setResetDialogOpen(true);
     handleMenuClose();
-    toast.info("Password reset functionality to be implemented");
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    try {
+      await dispatch(
+        resetAgentPasswordAsync({ id: selectedRowId, newPassword }),
+      ).unwrap();
+      toast.success("Agent password reset successfully");
+      setResetDialogOpen(false);
+      dispatch(resetStatuses());
+    } catch (err) {
+      toast.error(err?.message || "Failed to reset password");
+    }
   };
 
   const handleCloseModal = () => {
@@ -232,7 +265,7 @@ export const AgentManagement = () => {
     const { userType } = params.row;
     return (
       <Chip
-        label={userType || "N/A"}
+        label={formatDisplayLabel(userType) || "N/A"}
         size="small"
         variant="outlined"
         color="primary"
@@ -258,24 +291,16 @@ export const AgentManagement = () => {
   };
 
   const renderStatusCell = (params) => {
-    const { isActive, isVerified } = params.row._raw;
+    const status = params.row._raw?.status || "unverified";
+    const config = {
+      active: { label: "Active", color: "success" },
+      inactive: { label: "Inactive", color: "default" },
+      unverified: { label: "Pending password", color: "warning" },
+      verified: { label: "Pending profile", color: "info" },
+    };
+    const { label, color } = config[status] || config.unverified;
     return (
-      <Stack direction="row" spacing={0.5}>
-        <Chip
-          label={isActive ? "Active" : "Inactive"}
-          size="small"
-          color={isActive ? "success" : "default"}
-          variant="filled"
-        />
-        {!isVerified && (
-          <Chip
-            label="Unverified"
-            size="small"
-            color="warning"
-            variant="outlined"
-          />
-        )}
-      </Stack>
+      <Chip label={label} size="small" color={color} variant="filled" />
     );
   };
 
@@ -294,7 +319,7 @@ export const AgentManagement = () => {
     name: agent.name,
     email: agent.email,
     userType: agent.userType,
-    isActive: agent.isActive,
+    status: agent.status,
     _raw: agent,
   }));
 
@@ -350,10 +375,52 @@ export const AgentManagement = () => {
     },
   ];
 
-  const pageTitle = `Agents - ${agencyContext?.name || "Loading..."}`;
+  usePageTitle(
+    isViewingSpecificAgency
+      ? `Agents - ${agencyContext?.name || "Loading..."}`
+      : "",
+  );
 
   return (
     <Stack spacing={2}>
+      <ListPageHeader
+        actions={
+          <>
+            {agencyContext && (
+              <>
+                <Chip
+                  label={`${aggregates?.counts?.total || 0}/${
+                    agencyContext.maxAgents
+                  }`}
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                />
+                <Chip
+                  label={agencyContext.isActive ? "Active" : "Inactive"}
+                  size="small"
+                  color={agencyContext.isActive ? "success" : "default"}
+                />
+              </>
+            )}
+            <Search
+              value={searchValue}
+              onDebouncedChange={(val) => handleSearch(val)}
+              delay={800}
+              placeholder="Search agents..."
+              sx={{ width: { xs: "140px", sm: "220px", md: "280px" } }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleAddNew}
+              sx={{ textTransform: "none" }}
+            >
+              Add Agent
+            </Button>
+          </>
+        }
+      />
       {/* {isViewingSpecificAgency && (
         <Stack direction="row" alignItems="center" spacing={2}>
           <IconButton onClick={handleBack} size="small">
@@ -375,52 +442,6 @@ export const AgentManagement = () => {
           </Breadcrumbs>
         </Stack>
       )} */}
-
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ px: 1 }}
-      >
-        <Typography variant="h6">{pageTitle}</Typography>
-
-        <Stack direction="row" spacing={1} alignItems="center">
-          {agencyContext && (
-            <>
-              <Chip
-                label={`${aggregates?.counts?.total || 0}/${
-                  agencyContext.maxAgents
-                }`}
-                size="small"
-                variant="outlined"
-                color="primary"
-              />
-              <Chip
-                label={agencyContext.isActive ? "Active" : "Inactive"}
-                size="small"
-                color={agencyContext.isActive ? "success" : "default"}
-              />
-            </>
-          )}
-
-          <Search
-            value={searchValue}
-            onDebouncedChange={(val) => handleSearch(val)}
-            delay={800}
-            placeholder="Search agents..."
-            sx={{ width: { xs: "140px", sm: "220px", md: "280px" } }}
-          />
-
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleAddNew}
-            sx={{ textTransform: "none" }}
-          >
-            Add Agent
-          </Button>
-        </Stack>
-      </Stack>
 
       <DataTable
         rows={rows}
@@ -447,20 +468,49 @@ export const AgentManagement = () => {
           </ListItemIcon>
           <ListItemText>Edit</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleToggleStatus}>
-          <ListItemIcon>
-            {agents.find((a) => a._id === selectedRowId)?.isActive ? (
-              <ToggleOffIcon fontSize="small" />
-            ) : (
-              <ToggleOnIcon fontSize="small" />
-            )}
-          </ListItemIcon>
-          <ListItemText>
-            {agents.find((a) => a._id === selectedRowId)?.isActive
-              ? "Deactivate"
-              : "Activate"}
-          </ListItemText>
-        </MenuItem>
+        {(() => {
+          const selectedStatus = agents.find((a) => a._id === selectedRowId)
+            ?.status;
+          const isActive = selectedStatus === "active";
+          const isUnverified = selectedStatus === "unverified";
+          const isVerified = selectedStatus === "verified";
+          const toggleLabel = isActive ? "Deactivate" : "Activate";
+
+          return (
+            <MenuItem
+              onClick={isUnverified || isVerified ? undefined : handleToggleStatus}
+              disabled={isUnverified || isVerified}
+              sx={{
+                "&.Mui-disabled": {
+                  opacity: 0.5,
+                  pointerEvents: "none",
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color:
+                    isUnverified || isVerified ? "action.disabled" : "inherit",
+                  minWidth: 36,
+                }}
+              >
+                {isActive ? (
+                  <ToggleOffIcon fontSize="small" />
+                ) : (
+                  <ToggleOnIcon fontSize="small" />
+                )}
+              </ListItemIcon>
+              <ListItemText
+                sx={{
+                  color:
+                    isUnverified || isVerified ? "text.disabled" : "inherit",
+                }}
+              >
+                {toggleLabel}
+              </ListItemText>
+            </MenuItem>
+          );
+        })()}
         <MenuItem onClick={handleResetPassword}>
           <ListItemIcon>
             <LockResetIcon fontSize="small" />
@@ -510,17 +560,56 @@ export const AgentManagement = () => {
             py: 2,
           }}
         >
-          <Button variant="outlined" onClick={handleCloseModal}>
+          <Button variant="outlined" onClick={handleCloseModal} disabled={formSubmitting}>
             Cancel
           </Button>
           <LoadingButton
             type="submit"
             form="agent-form"
             variant="contained"
-            loading={createStatus === "pending"}
-            disabled={createStatus === "pending"}
+            loading={formSubmitting}
+            disabled={formSubmitting}
           >
             {editData ? "Update" : "Create"}
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={resetDialogOpen}
+        onClose={() => setResetDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Reset agent password</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="New password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              fullWidth
+              autoComplete="new-password"
+            />
+            <TextField
+              label="Confirm password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              fullWidth
+              autoComplete="new-password"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setResetDialogOpen(false)}>Cancel</Button>
+          <LoadingButton
+            variant="contained"
+            onClick={handleConfirmResetPassword}
+            loading={updateStatus === "pending"}
+          >
+            Reset password
           </LoadingButton>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,5 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { createApiThunk } from "../../config/thunkHelpers";
 import {
   createAgent,
   fetchAgents,
@@ -53,70 +54,34 @@ const initialState = {
   error: null,
 };
 
-export const fetchAgentsAsync = createAsyncThunk(
+export const fetchAgentsAsync = createApiThunk(
   "agents/fetch",
-  async ({ params = {}, signal } = {}, { rejectWithValue }) => {
-    try {
-      return await fetchAgents(params, signal);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  ({ params = {}, signal } = {}) => fetchAgents(params, signal),
 );
 
-export const createAgentAsync = createAsyncThunk(
+export const createAgentAsync = createApiThunk(
   "agents/create",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await createAgent(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => createAgent(payload),
 );
 
-export const updateAgentByIdAsync = createAsyncThunk(
+export const updateAgentByIdAsync = createApiThunk(
   "agents/update",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await updateAgentById(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => updateAgentById(payload),
 );
 
-export const fetchAgentByIdAsync = createAsyncThunk(
+export const fetchAgentByIdAsync = createApiThunk(
   "agents/getById",
-  async (id, { rejectWithValue }) => {
-    try {
-      return await getAgentById(id);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (id) => getAgentById(id),
 );
 
-export const toggleAgentStatusAsync = createAsyncThunk(
+export const toggleAgentStatusAsync = createApiThunk(
   "agents/toggleStatus",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await toggleAgentStatus(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => toggleAgentStatus(payload),
 );
 
-export const resetAgentPasswordAsync = createAsyncThunk(
+export const resetAgentPasswordAsync = createApiThunk(
   "agents/resetPassword",
-  async (payload, { rejectWithValue }) => {
-    try {
-      return await resetAgentPassword(payload);
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
-    }
-  },
+  (payload) => resetAgentPassword(payload),
 );
 
 const agentSlice = createSlice({
