@@ -4,7 +4,7 @@ export function getApiBaseUrl() {
   return (
     process.env.REACT_APP_API_URL ||
     process.env.REACT_APP_BASE_URL ||
-    "http://localhost:8000"
+    "https://api.tursaile.in"
   );
 }
 
