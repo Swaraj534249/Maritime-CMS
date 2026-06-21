@@ -22,7 +22,6 @@ import { toast } from "react-toastify";
 import DataTable from "../../../components/DataTable/DataTable";
 import Search from "../../../components/Search/Search";
 import StatusFilter from "../../../components/StatusFilter/StatusFilter";
-import { useStatusCounts } from "../../../hooks/useStatusCounts";
 import DocumentsDialog from "../../../components/Documents/DocumentsDialog";
 import FilesCountChip from "../../../components/Files/FilesCountChip";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
@@ -40,6 +39,7 @@ import {
   selectFeedbackSortModel,
   selectFeedbackSearchValue,
   selectFeedbackStatusFilter,
+  selectFeedbackStatusCounts,
   setFeedbackPaginationModel,
   setFeedbackSortModel,
   setFeedbackSearchValue,
@@ -105,13 +105,9 @@ export default function FeedbacksTable() {
   const statusFilter = useSelector(selectFeedbackStatusFilter);
   const selected = useSelector(selectSelectedFeedback);
 
-  const {
-    total: statusTotal,
-    byStatus: statusByCount,
-    refetch: refetchStatusCounts,
-  } = useStatusCounts("feedbacks", {
-    params: searchValue ? { searchValue } : {},
-  });
+  const { total: statusTotal, byStatus: statusByCount } = useSelector(
+    selectFeedbackStatusCounts,
+  );
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuRow, setMenuRow] = useState(null);
@@ -246,7 +242,7 @@ export default function FeedbacksTable() {
       setUpdateNote("");
       setUpdateFiles([]);
       dispatch(clearSelectedFeedback());
-      refetchStatusCounts();
+      // Refetch the page; the list response carries the updated statusCounts.
       dispatch(
         fetchFeedbacksAsync({
           params: {

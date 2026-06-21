@@ -5,11 +5,14 @@ const {
   feedbackStatusUpdateEmail,
 } = require("./templates/feedback.templates");
 const { buildAgencySignature } = require("./templates/signature.templates");
+const { adminFrom } = require("./mailIdentities");
 const Agency = require("../../models/Agency");
 const User = require("../../models/User");
 
 const FEEDBACK_NOTIFY_EMAIL =
-  process.env.FEEDBACK_NOTIFY_EMAIL || "bombaydealz@gmail.com";
+  process.env.FEEDBACK_NOTIFY_EMAIL ||
+  process.env.SES_FROM_EMAIL ||
+  process.env.EMAIL;
 
 function toMailAttachments(files = []) {
   return files
@@ -93,6 +96,7 @@ function queueFeedbackStatusEmail({
   subjectSuffix,
   cc = [],
   fileBuffers = [],
+  from,
 }) {
   enqueueEmailJob(async () => {
     const signatureHtml = await buildFeedbackSignature(feedback, update.createdBy);
@@ -115,6 +119,7 @@ function queueFeedbackStatusEmail({
       cc,
       replyTo: update.createdBy.email,
       attachments: toMailAttachments(fileBuffers),
+      ...(from ? { from } : {}),
     });
   });
 }
@@ -129,6 +134,7 @@ function queueFeedbackResolvedEmail({ feedback, update, fileBuffers = [], cc = [
     subjectSuffix: "Resolved",
     cc,
     fileBuffers,
+    from: adminFrom(),
   });
 }
 
@@ -155,6 +161,7 @@ function queueFeedbackReminderEmail({ feedback, update, fileBuffers = [], cc = [
     subjectSuffix: "Reminder",
     cc,
     fileBuffers,
+    from: adminFrom(),
   });
 }
 

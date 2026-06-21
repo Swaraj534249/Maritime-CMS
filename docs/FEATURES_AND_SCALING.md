@@ -13,7 +13,7 @@ Frontend + backend on the host, **real AWS** S3 + SES via `backend/.env`. No Doc
 | **MongoDB** | Yes | All app data |
 | **`aws/s3/`** | Yes (if using file uploads) | Storage for logos, docs, photos |
 | **`aws/ses/`** or SMTP | Yes (if sending mail) | Auth / welcome emails |
-| **`utils/Emails.js`** | Yes | Single switch SES vs Gmail |
+| **`utils/Emails.js`** | Yes | Single `EMAIL_PROVIDER` switch: SES vs SMTP (Hostinger) |
 | **`services/email/` queue** | Recommended | Keeps API fast; not Redis |
 | **`services/email/` templates** | Recommended | Maintainable HTML |
 | **`enrichDeep` + presigned image URLs** | Recommended | Fast table logos without streaming through API |

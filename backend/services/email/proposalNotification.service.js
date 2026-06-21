@@ -5,6 +5,14 @@ const {
   candidateSelectedEmail,
 } = require("./templates/proposal.templates");
 const { buildAgencySignature } = require("./templates/signature.templates");
+const { getAgencyAdminEmails } = require("./recipients");
+const { supportBcc } = require("./mailIdentities");
+
+/** BCC the agency admin (+ temporary support monitoring) on candidate-facing mail. */
+async function candidateBcc(agencyId) {
+  const admins = await getAgencyAdminEmails(agencyId);
+  return [...new Set([...admins, ...supportBcc()])].filter(Boolean);
+}
 
 function signatureFor({ agency, signer, replyTo }) {
   return buildAgencySignature({
@@ -44,9 +52,10 @@ function queueCandidateProposedEmail({ candidate, vacancy, agency, signer }) {
 
   const subject = `You have been proposed for ${vacancy.vacancyId}`;
 
-  enqueueEmailJob(() =>
-    sendMail(candidate.email, subject, html, { replyTo }),
-  );
+  enqueueEmailJob(async () => {
+    const bcc = await candidateBcc(agency?._id);
+    await sendMail(candidate.email, subject, html, { replyTo, bcc });
+  });
 }
 
 /**
@@ -74,7 +83,10 @@ function queueCandidateSelectedEmail({ candidate, vacancy, agency, signer }) {
 
   const subject = `Congratulations — you have been selected for ${vacancy.vacancyId}`;
 
-  enqueueEmailJob(() => sendMail(candidate.email, subject, html, { replyTo }));
+  enqueueEmailJob(async () => {
+    const bcc = await candidateBcc(agency?._id);
+    await sendMail(candidate.email, subject, html, { replyTo, bcc });
+  });
 }
 
 module.exports = { queueCandidateProposedEmail, queueCandidateSelectedEmail };
