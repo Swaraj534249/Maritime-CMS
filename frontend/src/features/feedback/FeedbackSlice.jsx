@@ -24,6 +24,7 @@ const initialState = {
       sortOrder: "desc",
     },
     aggregates: {},
+    statusCounts: { total: 0, byStatus: {} },
     context: {},
   },
   selected: null,
@@ -117,9 +118,13 @@ const feedbackSlice = createSlice({
       })
       .addCase(fetchFeedbacksAsync.fulfilled, (state, action) => {
         state.status.fetch = "fulfilled";
-        const { data, meta } = action.payload || {};
+        const { data, meta, aggregates } = action.payload || {};
         state.list.data = data || [];
         state.list.meta = meta || initialState.list.meta;
+        state.list.statusCounts = aggregates?.statusCounts || {
+          total: 0,
+          byStatus: {},
+        };
       })
       .addCase(fetchFeedbacksAsync.rejected, (state, action) => {
         state.status.fetch = "rejected";
@@ -170,4 +175,6 @@ export const selectFeedbackSortModel = (state) => base(state).ui.sortModel;
 export const selectFeedbackSearchValue = (state) => base(state).ui.searchValue;
 export const selectFeedbackStatusFilter = (state) =>
   base(state).ui.statusFilter;
+export const selectFeedbackStatusCounts = (state) =>
+  base(state).list.statusCounts || { total: 0, byStatus: {} };
 export const selectSelectedFeedback = (state) => base(state).selected;

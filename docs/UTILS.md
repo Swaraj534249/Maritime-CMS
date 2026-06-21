@@ -17,7 +17,7 @@ Used by `fileAccess.service.js`, `upload.js` delete, `files.controller.js`.
 
 ## `Emails.js`
 
-Facade: **`sendMail(to, subject, html)`** → SES or SMTP based on `EMAIL_PROVIDER`.  
+Facade: **`sendMail(to, subject, html)`** → Amazon SES or SMTP (Hostinger) based on `EMAIL_PROVIDER`.  
 See [SES.md](./SES.md).
 
 ## `GenerateToken.js`
@@ -38,7 +38,15 @@ Builds MongoDB filter/sort/pagination from query string (`page`, `limit`, `searc
 
 ## `ListResponseBuilder.js`
 
-Shapes list API responses (`data`, `total`, `page`, `totalPages`, etc.) consistently.
+Shapes list API responses (`result.data`, `meta.pagination`, `aggregates`, `context`) consistently. Per-status counts live under `aggregates.statusCounts` (`{ total, byStatus }`).
+
+## `facetList.js`
+
+`facetPaginate(...)` — runs the page query + total count (and optional `byStatus` counts) in a **single** MongoDB aggregation `$facet`. With `withCounts: true` + `statusField`/`statusValue`, the selected status is applied inside the data/total branches while the counts branch still counts every status in scope. Used by list endpoints (vacancy, proposal, documentation, sailing, candidate, feedback) so the status-dropdown counts ship with the list response instead of a separate request.
+
+## `statusCounts.js`
+
+`computeStatusCounts({ Model, matchFilter, field })` — standalone total + per-status breakdown for the optional `GET /{resource}/status-counts` endpoints (kept for reuse; the list responses now embed the same data via `facetPaginate`).
 
 ## `ResumeParser.js`
 

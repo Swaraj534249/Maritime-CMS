@@ -24,7 +24,7 @@ Open  →  In Progress  →  Resolved  →  Closed
    - Open **Submit Feedback** from the navbar.  
    - Choose category, title, description, and up to 5 attachments (10 MB each).  
    - Ticket ID is generated per agency (e.g. `SRJA-0001`).  
-   - Email goes to the configured inbox (`FEEDBACK_NOTIFY_EMAIL`, default `bombaydealz@gmail.com`) with **Reply-To** set to the submitter and files attached.
+   - Email goes to the configured inbox (`FEEDBACK_NOTIFY_EMAIL`, e.g. `admin@tursaile.in`) with **Reply-To** set to the submitter and files attached.
 
 2. **Triage (super admin)**  
    - Open **Feedbacks** in the sidebar.  
@@ -121,7 +121,8 @@ sequenceDiagram
 #### List / access control
 
 - Super admin: all tickets.  
-- Others: filtered by `req.user.agencyId`.
+- Others: filtered by `req.user.agencyId`.  
+- `list` uses `facetPaginate` with `withCounts` so the per-status counts ship **inside the list response** (`aggregates.statusCounts`) in a single request — no separate `/status-counts` call from the UI. The selected status is applied via `statusValue` so the breakdown still counts every status in scope. (The `/status-counts` route/service remain but the table no longer calls them.)
 
 ### Frontend files
 
@@ -155,7 +156,7 @@ sequenceDiagram
 
 | Variable | Purpose |
 |----------|---------|
-| `FEEDBACK_NOTIFY_EMAIL` | Inbox for new submissions and reopen alerts (default `bombaydealz@gmail.com`) |
+| `FEEDBACK_NOTIFY_EMAIL` | Inbox for new submissions and reopen alerts (e.g. `admin@tursaile.in`) |
 
 ---
 

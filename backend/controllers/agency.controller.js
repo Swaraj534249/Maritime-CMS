@@ -11,6 +11,7 @@ const { INDUSTRY_TYPES } = require("../models/schemas/industryTypes");
 const {
   prepareAndQueueAgencyAdminWelcome,
 } = require("../services/email/emailNotification.service");
+const { adminFrom } = require("../services/email/mailIdentities");
 
 exports.create = async (req, res) => {
   try {
@@ -378,7 +379,8 @@ exports.updateById = async (req, res) => {
               <p>If you did not request this password reset, please contact support immediately.</p>
               
               <p style="margin-top: 30px;">Best regards,<br>Platform Administration Team</p>
-            </div>`
+            </div>`,
+            { from: adminFrom() }
           );
           // console.log("Password update email sent successfully to:", admin.email);
         } catch (emailError) {

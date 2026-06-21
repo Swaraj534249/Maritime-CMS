@@ -2,6 +2,8 @@ const { sendMail } = require("../../utils/Emails");
 const { enqueueEmailJob } = require("./emailQueue.service");
 const { sailingEmail } = require("./templates/sailing.templates");
 const { buildAgencySignature } = require("./templates/signature.templates");
+const { getAgencyAdminEmails } = require("./recipients");
+const { supportBcc } = require("./mailIdentities");
 const Agency = require("../../models/Agency");
 const User = require("../../models/User");
 
@@ -49,24 +51,31 @@ function queueSailingEmails({ sailing, candidateEmail }) {
       signatureHtml,
     };
 
-    // Candidate email
+    // Candidate email (BCC agency admin + temporary support monitoring).
     if (candidateEmail) {
+      const adminEmails = await getAgencyAdminEmails(sailing.agencyId);
+      const candidateBcc = [...new Set([...adminEmails, ...supportBcc()])].filter(
+        Boolean,
+      );
       const html = sailingEmail({ ...base, forCandidate: true });
       await sendMail(
         candidateEmail,
         `Contract Approved — ${sailing.vacancyCode || ""}`.trim(),
         html,
-        { replyTo: agency?.email },
+        { replyTo: agency?.email, bcc: candidateBcc },
       );
     }
 
-    // Agency staff email
+    // Agency staff email (temporary support monitoring only).
     const staffHtml = sailingEmail({ ...base, forCandidate: false });
     const staffSubject = `Contract Approved — ${sailing.candidateName || "Candidate"} (${sailing.vacancyCode || ""})`;
     const emails = [...new Set((staff || []).map((u) => u.email).filter(Boolean))];
     emails.forEach((to) => {
       enqueueEmailJob(() =>
-        sendMail(to, staffSubject, staffHtml, { replyTo: agency?.email }),
+        sendMail(to, staffSubject, staffHtml, {
+          replyTo: agency?.email,
+          bcc: supportBcc(),
+        }),
       );
     });
   });

@@ -197,10 +197,9 @@ async function list(req) {
       extraFilter.isActive = false;
     }
 
-    // Status filter
-    if (currentStatus) {
-      extraFilter.currentStatus = currentStatus;
-    }
+    // Status filter is applied inside facetPaginate (statusValue) so the
+    // status-count breakdown can still count every status within the search
+    // scope. The non-paginated `all` branch applies it directly on the query.
 
     // Rank filter
     if (rank) {
@@ -233,7 +232,10 @@ async function list(req) {
     });
 
     if (all === "true") {
-      const data = await Candidate.find(queryFilter)
+      const allFilter = currentStatus
+        ? { ...queryFilter, currentStatus }
+        : queryFilter;
+      const data = await Candidate.find(allFilter)
         .populate("agencyId", "name email industryType")
         .populate("addedBy", "name email")
         .sort(sort)
@@ -249,13 +251,18 @@ async function list(req) {
       });
     }
 
-    // Page data + total in a single aggregation round-trip.
-    const { data, totalRecords } = await facetPaginate({
+    // Page data + total + status counts in a single aggregation round-trip.
+    // statusValue filters the page/total branches while the counts branch still
+    // counts every status within the agency + search scope.
+    const { data, totalRecords, statusCounts } = await facetPaginate({
       Model: Candidate,
       matchFilter: queryFilter,
       sort,
       skip,
       limit: pageSizeNumber,
+      statusField: "currentStatus",
+      statusValue: currentStatus,
+      withCounts: true,
       populate: [
         { path: "agencyId", select: "name email industryType" },
         { path: "addedBy", select: "name email" },
@@ -283,6 +290,7 @@ async function list(req) {
       searchValue,
       sortField,
       sortOrder,
+      aggregates: { statusCounts },
       context: {
         agency: agencyContext,
         viewMode: userRole === "SUPER_ADMIN" ? "super-admin" : "agency",
