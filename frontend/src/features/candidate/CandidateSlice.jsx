@@ -3,7 +3,6 @@ import { createApiThunk } from "../../config/thunkHelpers";
 import {
   createCandidate,
   fetchCandidates,
-  fetchCandidateStatusCounts,
   getCandidateById,
   toggleCandidateStatus,
   updateCandidateById,
@@ -98,11 +97,6 @@ export const fetchAvailableCandidatesAsync = createApiThunk(
   (params = {}) => getAvailableCandidates(params),
 );
 
-export const fetchCandidateStatusCountsAsync = createApiThunk(
-  "candidates/statusCounts",
-  ({ params = {}, signal } = {}) => fetchCandidateStatusCounts(params, signal),
-);
-
 const candidateSlice = createSlice({
   name: "candidates",
   initialState,
@@ -143,6 +137,10 @@ const candidateSlice = createSlice({
         state.list.meta = meta || initialState.list.meta;
         state.list.aggregates = aggregates || initialState.list.aggregates;
         state.list.context = context || {};
+        state.statusCounts = aggregates?.statusCounts || {
+          total: 0,
+          byStatus: {},
+        };
       })
       .addCase(fetchCandidatesAsync.rejected, (state, action) => {
         state.status.fetch = "rejected";
@@ -229,11 +227,6 @@ const candidateSlice = createSlice({
       .addCase(fetchAvailableCandidatesAsync.rejected, (state, action) => {
         state.status.available = "rejected";
         state.error = action.payload;
-      })
-
-      // Status counts (for the status dropdown)
-      .addCase(fetchCandidateStatusCountsAsync.fulfilled, (state, action) => {
-        state.statusCounts = action.payload || { total: 0, byStatus: {} };
       });
   },
 });

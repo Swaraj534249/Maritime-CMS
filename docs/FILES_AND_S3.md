@@ -32,11 +32,18 @@ Optional: `POST /files/presign-upload` + browser PUT (requires S3 bucket CORS; n
 ## Env
 
 ```env
-S3_BUCKET_NAME=...
+S3_BUCKET_NAME=...        # dev: maritime-cms-dev-upload, prod: maritime-cms-prod-upload
+AWS_REGION=ap-south-1     # must match the bucket region (and SES region)
 S3_PRESIGN_EXPIRES_SECONDS=3600
 S3_PRESIGN_UPLOAD_EXPIRES_SECONDS=900
 ```
 
+Bucket name + region are read entirely from env (`aws/clients.js`, `storage.service.js`), so pointing prod at a new bucket is just an env change — **no code change**.
+
 ## IAM
 
-Bucket policy + user: `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`.
+Bucket policy + user: `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`. Use a **dedicated prod IAM user** (e.g. `maritime-cms-prod`) scoped to the prod bucket ARN (`arn:aws:s3:::maritime-cms-prod-upload/*`) plus SES send, separate from the dev/local user. Keep "Block all public access" ON — files are served via presigned URLs and server streaming, never public.
+
+## Upload size limit
+
+10 MB per file, enforced in `middleware/upload.js`, `aws/s3/uploadKey.service.js`, `routes/feedback.route.js`, and frontend `fileUtils.js` (`MAX_FILE_BYTES`). Behind a reverse proxy, set the proxy body limit ≥ this (e.g. nginx `client_max_body_size 12M;`), otherwise large uploads fail with **413** before reaching the app.

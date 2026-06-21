@@ -247,7 +247,7 @@ exports.resendOtp = async (req, res) => {
 
     await sendMail(
       existingUser.email,
-      `OTP Verification for Your MERN-AUTH-REDUX-TOOLKIT Account`,
+      `OTP Verification for Your Tursaile Account`,
       `Your One-Time Password (OTP) for account verification is: <b>${otp}</b>.</br>Do not share this OTP with anyone for security reasons`,
     );
 
@@ -298,17 +298,17 @@ exports.forgotPassword = async (req, res) => {
     // sends the password reset link to the user's mail
     await sendMail(
       isExistingUser.email,
-      "Password Reset Link for Your MERN-AUTH-REDUX-TOOLKIT Account",
+      "Password Reset Link for Your Tursaile Account",
       `<p>Dear ${isExistingUser.name},
 
-        We received a request to reset the password for your MERN-AUTH-REDUX-TOOLKIT account. If you initiated this request, please use the following link to reset your password:</p>
+        We received a request to reset the password for your Tursaile account. If you initiated this request, please use the following link to reset your password:</p>
         
         <p><a href=${process.env.ORIGIN}/reset-password/${isExistingUser._id}/${passwordResetToken} target="_blank">Reset Password</a></p>
         
         <p>This link is valid for a limited time. If you did not request a password reset, please ignore this email. Your account security is important to us.
         
         Thank you,
-        The MERN-AUTH-REDUX-TOOLKIT Team</p>`,
+        The Tursaile Team</p>`,
     );
 
     res

@@ -1,3 +1,3 @@
-# Backend URL (adjust if needed)
-REACT_APP_BASE_URL=http://localhost:8000
-# REACT_APP_BASE_URL=http://13.203.91.130:8000
+# Reference sample. Real values live in .env.development / .env.production.
+REACT_APP_API_URL=http://localhost:8000
+# REACT_APP_API_URL=https://api.tursaile.in

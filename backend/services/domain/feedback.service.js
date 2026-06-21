@@ -5,6 +5,7 @@ const User = require("../../models/User");
 const { AppError } = require("../../errors/AppError");
 const { buildListQuery } = require("../../utils/ListQueryBuilder");
 const { buildListResponse } = require("../../utils/ListResponseBuilder");
+const { facetPaginate } = require("../../utils/facetList");
 const { computeStatusCounts } = require("../../utils/statusCounts");
 const { buildTicketPrefix, formatTicketId } = require("../../utils/feedbackTicketId");
 const {
@@ -172,7 +173,8 @@ async function list(req) {
     }
     extraFilter.agencyId = req.user.agencyId;
   }
-  if (status) extraFilter.status = status;
+  // The selected status is applied inside facetPaginate (statusValue) so the
+  // status-count breakdown can still count every status within the search scope.
 
   const { queryFilter, skip, sort } = buildListQuery({
     Model: Feedback,
@@ -185,10 +187,17 @@ async function list(req) {
     extraFilter,
   });
 
-  const [data, totalRecords] = await Promise.all([
-    Feedback.find(queryFilter).skip(skip).limit(pageSizeNumber).sort(sort).lean(),
-    Feedback.countDocuments(queryFilter),
-  ]);
+  // Page data + total + status counts in a single aggregation round-trip.
+  const { data, totalRecords, statusCounts } = await facetPaginate({
+    Model: Feedback,
+    matchFilter: queryFilter,
+    sort,
+    skip,
+    limit: pageSizeNumber,
+    statusField: "status",
+    statusValue: status,
+    withCounts: true,
+  });
 
   return buildListResponse({
     data: data.map(normalizeFeedback),
@@ -198,7 +207,7 @@ async function list(req) {
     searchValue,
     sortField,
     sortOrder,
-    aggregates: {},
+    aggregates: { statusCounts },
     context: {},
   });
 }

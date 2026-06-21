@@ -17,6 +17,7 @@ import {
   setSortModel,
   setSearchValue,
   setStatusFilter,
+  selectCandidateStatusCounts,
   CANDIDATE_STATUS_OPTIONS,
 } from "../../candidate/CandidateSlice";
 import {
@@ -47,7 +48,6 @@ import InitialsAvatar from "../../../components/InitialsAvatar/InitialsAvatar";
 import { ListPageHeader } from "../../navigation/components/ListPageHeader";
 import { AddedByCell } from "../../../components/AddedByCell/AddedByCell";
 import StatusFilter from "../../../components/StatusFilter/StatusFilter";
-import { useStatusCounts } from "../../../hooks/useStatusCounts";
 import { toast } from "react-toastify";
 import { useRowActions } from "../../../hooks/useRowActions";
 import {
@@ -68,13 +68,9 @@ export const Candidates = () => {
   const searchValue = useSelector(selectSearchValue);
   const statusFilter = useSelector(selectStatusFilter);
 
-  const {
-    total: statusTotal,
-    byStatus: statusByCount,
-    refetch: refetchStatusCounts,
-  } = useStatusCounts("candidates", {
-    params: searchValue ? { searchValue } : {},
-  });
+  const { total: statusTotal, byStatus: statusByCount } = useSelector(
+    selectCandidateStatusCounts,
+  );
 
   const [openDocumentsDialog, setOpenDocumentsDialog] = useState(false);
   const [documentsForDialog, setDocumentsForDialog] = useState(null);
@@ -160,8 +156,19 @@ export const Candidates = () => {
     if (updateStatus === "fulfilled") {
       toast.success("Candidate status updated successfully");
       dispatch(resetStatuses());
-      // A toggle can change the per-status counts.
-      refetchStatusCounts();
+      // A status change can affect the per-status counts. Refetch the current
+      // page so the embedded statusCounts (returned with the list) stay accurate.
+      const sort = sortModel[0];
+      const sortField = sort ? sortFieldMap[sort.field] || sort.field : undefined;
+      const sortOrder = sort ? sort.sort : undefined;
+      fetchPage(
+        paginationModel.page + 1,
+        paginationModel.pageSize,
+        sortField,
+        sortOrder,
+        searchValue,
+        statusFilter,
+      );
     }
 
     if (updateStatus === "rejected") {

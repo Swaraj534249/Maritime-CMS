@@ -2,6 +2,7 @@ const { sendMail } = require("../../utils/Emails");
 const { enqueueEmailJob } = require("./emailQueue.service");
 const { vacancyCreatedEmail } = require("./templates/vacancy.templates");
 const { buildAgencySignature } = require("./templates/signature.templates");
+const { supportBcc } = require("./mailIdentities");
 
 /**
  * Notify all agency staff that a new vacancy was created.
@@ -48,7 +49,9 @@ function queueVacancyCreatedEmail({
   const subject = `[${vacancy.vacancyId}] New Vacancy — ${vacancy.rank}`;
 
   emails.forEach((to) => {
-    enqueueEmailJob(() => sendMail(to, subject, html, { replyTo }));
+    enqueueEmailJob(() =>
+      sendMail(to, subject, html, { replyTo, bcc: supportBcc() }),
+    );
   });
 }
 
